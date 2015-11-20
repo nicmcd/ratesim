@@ -30,8 +30,15 @@
  */
 #include "ratecontrol/Receiver.h"
 
+#include "ratecontrol/Message.h"
+
 Receiver::Receiver(des::Simulator* _sim, const std::string& _name,
-                   const des::Model* _parent)
-    : des::Model(_sim, _name, _parent) {}
+                   const des::Model* _parent, u32 _id)
+    : Node(_sim, _name, _parent, _id) {}
 
 Receiver::~Receiver() {}
+
+void Receiver::recv(Message* _msg) {
+  dlogf("received message");
+  delete _msg;
+}

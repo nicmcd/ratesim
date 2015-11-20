@@ -28,16 +28,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <des/Event.h>
-#include <des/Model.h>
-#include <des/Simulator.h>
+#include <des/des.h>
 #include <prim/prim.h>
 #include <tclap/CmdLine.h>
 
+#include <cassert>
 #include <cmath>
 
 #include <atomic>
-#include <memory>
 #include <thread>
 #include <tuple>
 #include <vector>
@@ -77,13 +75,15 @@ std::string createName(const std::string& _prefix, u32 _id, u32 _total) {
 
 s32 main(s32 _argc, char** _argv) {
   /* set defaults here */
-  u32 numSenders = 100;
-  u32 numReceivers = 50;
+  u32 numSenders = 1;
+  u32 numReceivers = 1;
   f32 rateLimit = 0.5;
   std::string controlAlgorithm = "none";
   u32 numThreads = 1;
   s64 numMessages = 1000000;  // must be u32
   bool verbose;
+
+  assert(numMessages >= 0 && numMessages <= U32_MAX);
 
   try {
     // define command line and arguments
@@ -150,21 +150,32 @@ s32 main(s32 _argc, char** _argv) {
   des::Simulator sim(numThreads);
 
   // create models and components
-  std::atomic<s64> remainingSendMessages(numMessages);
-  std::vector<std::shared_ptr<Sender> > senders(numSenders, nullptr);
-  for (u32 s = 0; s < numSenders; s++) {
-    senders.at(s) = std::shared_ptr<Sender>(
-        new Sender(&sim, createName("S", s, numSenders), nullptr,
-                   &remainingSendMessages));
-  }
-  std::vector<std::shared_ptr<Receiver> > receivers(numReceivers, nullptr);
+  u32 nodeId = 0;
+  std::vector<Receiver*> receivers(numReceivers, nullptr);
   for (u32 r = 0; r < numReceivers; r++) {
-    receivers.at(r) = std::shared_ptr<Receiver>(
-        new Receiver(&sim, createName("R", r, numReceivers), nullptr));
+    receivers.at(r) = new Receiver(&sim, createName("R", r, numReceivers),
+                                   nullptr, nodeId++);
+    receivers.at(r)->debug = verbose;
+  }
+  std::atomic<s64> remainingSendMessages(numMessages);
+  std::vector<Sender*> senders(numSenders, nullptr);
+  for (u32 s = 0; s < numSenders; s++) {
+    senders.at(s) = new Sender(&sim, createName("S", s, numSenders), nullptr,
+                               nodeId++, &remainingSendMessages, 1, 1000,
+                               &receivers);
+    senders.at(s)->debug = verbose;
   }
 
   // run simulation
-  sim.simulate(true);
+  sim.simulate(verbose);
+
+  // cleanup
+  for (u32 r = 0; r < numReceivers; r++) {
+    delete receivers.at(r);
+  }
+  for (u32 s = 0; s < numSenders; s++) {
+    delete senders.at(s);
+  }
 
   return 0;
 }

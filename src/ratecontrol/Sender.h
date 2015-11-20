@@ -33,18 +33,34 @@
 
 #include <des/des.h>
 #include <prim/prim.h>
+#include <rng/Random.h>
 
 #include <atomic>
 #include <string>
+#include <vector>
 
-class Sender : public des::Model {
+#include "ratecontrol/Node.h"
+
+class Receiver;
+
+class Sender : public Node {
  public:
   Sender(des::Simulator* _sim, const std::string& _name,
-         const des::Model* _parent, std::atomic<s64>* _remaining);
+         const des::Model* _parent, u32 _id, std::atomic<s64>* _remaining,
+         u32 _minMessageSize, u32 _maxMessageSize,
+         std::vector<Receiver*>* _receivers);
   ~Sender();
+  void trySendMessageEvent(des::Time _time);
+
+  void recv(Message* _msg) override;
 
  private:
+  void sendMessageHandler(des::Event* _event);
+
   std::atomic<s64>* remaining_;
+  u32 minMessageSize_;
+  u32 maxMessageSize_;
+  std::vector<Receiver*>* receivers_;
 };
 
 #endif  // RATECONTROL_SENDER_H_

@@ -28,53 +28,43 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "ratecontrol/Sender.h"
+#ifndef RATECONTROL_NODE_H_
+#define RATECONTROL_NODE_H_
 
-#include "ratecontrol/Message.h"
-#include "ratecontrol/Receiver.h"
+#include <des/des.h>
+#include <prim/prim.h>
+#include <rng/Random.h>
 
-Sender::Sender(des::Simulator* _sim, const std::string& _name,
-               const des::Model* _parent, u32 _id, std::atomic<s64>* _remaining,
-               u32 _minMessageSize, u32 _maxMessageSize,
-               std::vector<Receiver*>* _receivers)
-    : Node(_sim, _name, _parent, _id), remaining_(_remaining),
-      minMessageSize_(_minMessageSize), maxMessageSize_(_maxMessageSize),
-      receivers_(_receivers) {
-  // create the first event
-  trySendMessageEvent(des::Time(0));
-}
+#include <string>
 
-Sender::~Sender() {}
+class Message;
 
-void Sender::trySendMessageEvent(des::Time _time) {
-  s64 prev = remaining_->fetch_sub(1);
-  if (prev > 0) {
-    des::Event* event = new des::Event(this, static_cast<des::EventHandler>(
-        &Sender::sendMessageHandler), _time);
-    simulator->addEvent(event);
-  }
-}
+class Node : public des::Model {
+ public:
+  Node(des::Simulator* _sim, const std::string& _name,
+       const des::Model* _parent, u32 _id);
+  virtual ~Node();
 
-void Sender::recv(Message* _msg) {
-  dlogf("received message\n");
-  delete _msg;
-}
+  void future_recv(Message* _msg, des::Time _time);
+  virtual void recv(Message* _msg) = 0;
 
-void Sender::sendMessageHandler(des::Event* _event) {
-  // get random destination
-  u32 dst = prng.nextU64(0, receivers_->size() - 1);
+  const u32 id;
 
-  // create a random sized message
-  u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
-  u64 cycles = cyclesToSend(size, 1.0);
-  Message* msg = new Message(id, receivers_->at(dst)->id, size);
-  des::Time time = simulator->time();
-  time.tick += cycles;
-  dlogf("dst=%u size=%u", dst, size);
-  receivers_->at(dst)->future_recv(msg, time);
+ protected:
+  u64 cyclesToSend(u32 _size, f64 _rate);
 
-  // determine how long until the next message
-  trySendMessageEvent(time);
+  rng::Random prng;
 
-  delete _event;
-}
+ private:
+  class RecvEvent : public des::Event {
+   public:
+    RecvEvent(des::Model* _model, des::EventHandler _handler, Message* _msg,
+              des::Time _time);
+    ~RecvEvent();
+    Message* msg;
+  };
+
+  void handle_recv(des::Event* _event);
+};
+
+#endif  // RATECONTROL_NODE_H_

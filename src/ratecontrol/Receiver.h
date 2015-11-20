@@ -36,11 +36,17 @@
 
 #include <string>
 
-class Receiver : public des::Model {
+#include "ratecontrol/Node.h"
+
+class Message;
+
+class Receiver : public Node {
  public:
   Receiver(des::Simulator* _sim, const std::string& _name,
-           const des::Model* _parent);
+           const des::Model* _parent, u32 _id);
   ~Receiver();
+
+  void recv(Message* _msg) override;
 };
 
 #endif  // RATECONTROL_RECEIVER_H_

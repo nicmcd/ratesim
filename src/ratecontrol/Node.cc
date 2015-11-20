@@ -28,53 +28,50 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "ratecontrol/Sender.h"
+#include "ratecontrol/Node.h"
 
-#include "ratecontrol/Message.h"
-#include "ratecontrol/Receiver.h"
+#include <cassert>
 
-Sender::Sender(des::Simulator* _sim, const std::string& _name,
-               const des::Model* _parent, u32 _id, std::atomic<s64>* _remaining,
-               u32 _minMessageSize, u32 _maxMessageSize,
-               std::vector<Receiver*>* _receivers)
-    : Node(_sim, _name, _parent, _id), remaining_(_remaining),
-      minMessageSize_(_minMessageSize), maxMessageSize_(_maxMessageSize),
-      receivers_(_receivers) {
-  // create the first event
-  trySendMessageEvent(des::Time(0));
+#include <chrono>
+
+Node::Node(des::Simulator* _sim, const std::string& _name,
+           const des::Model* _parent, u32 _id)
+    : des::Model(_sim, _name, _parent), id(_id) {
+  // seed the random number generator with the id
+  prng.seed(std::chrono::system_clock::now().time_since_epoch().count() + id);
 }
 
-Sender::~Sender() {}
+Node::~Node() {}
 
-void Sender::trySendMessageEvent(des::Time _time) {
-  s64 prev = remaining_->fetch_sub(1);
-  if (prev > 0) {
-    des::Event* event = new des::Event(this, static_cast<des::EventHandler>(
-        &Sender::sendMessageHandler), _time);
-    simulator->addEvent(event);
+void Node::future_recv(Message* _msg, des::Time _time) {
+  simulator->addEvent(new Node::RecvEvent(
+      this, static_cast<des::EventHandler>(&Node::handle_recv), _msg, _time));
+}
+
+u64 Node::cyclesToSend(u32 _size, f64 _rate) {
+  // if the number of cycles is not even,
+  //  probablistic cycles must be computed
+  f64 cycles = _size / _rate;
+  f64 fraction = modf(cycles, &cycles);
+  if (fraction != 0.0) {
+    assert(fraction > 0.0);
+    assert(fraction < 1.0);
+    f64 rnd = prng.nextF64();
+    if (fraction > rnd) {
+      cycles += 1.0;
+    }
   }
+  return (u64)cycles;
 }
 
-void Sender::recv(Message* _msg) {
-  dlogf("received message\n");
-  delete _msg;
-}
+Node::RecvEvent::RecvEvent(des::Model* _model, des::EventHandler _handler,
+                           Message* _msg, des::Time _time)
+    : des::Event(_model, _handler, _time), msg(_msg) {}
 
-void Sender::sendMessageHandler(des::Event* _event) {
-  // get random destination
-  u32 dst = prng.nextU64(0, receivers_->size() - 1);
+Node::RecvEvent::~RecvEvent() {}
 
-  // create a random sized message
-  u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
-  u64 cycles = cyclesToSend(size, 1.0);
-  Message* msg = new Message(id, receivers_->at(dst)->id, size);
-  des::Time time = simulator->time();
-  time.tick += cycles;
-  dlogf("dst=%u size=%u", dst, size);
-  receivers_->at(dst)->future_recv(msg, time);
-
-  // determine how long until the next message
-  trySendMessageEvent(time);
-
-  delete _event;
+void Node::handle_recv(des::Event* _event) {
+  Node::RecvEvent* evt = reinterpret_cast<RecvEvent*>(_event);
+  this->recv(evt->msg);
+  delete evt;
 }
