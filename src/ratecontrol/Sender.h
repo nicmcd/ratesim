@@ -41,14 +41,15 @@
 
 #include "ratecontrol/Node.h"
 
+class MonitorGroup;
 class Receiver;
 
 class Sender : public Node {
  public:
   Sender(des::Simulator* _sim, const std::string& _name,
-         const des::Model* _parent, u32 _id, std::atomic<s64>* _remaining,
-         u32 _minMessageSize, u32 _maxMessageSize,
-         std::vector<Receiver*>* _receivers);
+         const des::Model* _parent, u32 _id, MonitorGroup* _monitorGroup,
+         u32 _gid, std::atomic<s64>* _remaining, u32 _minMessageSize,
+         u32 _maxMessageSize, std::vector<Receiver*>* _receivers);
   ~Sender();
   void trySendMessageEvent(des::Time _time);
 

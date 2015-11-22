@@ -28,57 +28,34 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RATECONTROL_NODE_H_
-#define RATECONTROL_NODE_H_
+#ifndef RATECONTROL_MONITORGROUP_H_
+#define RATECONTROL_MONITORGROUP_H_
 
 #include <des/des.h>
 #include <prim/prim.h>
-#include <rng/Random.h>
 
+#include <atomic>
 #include <string>
 
-class Message;
-class MonitorGroup;
-
-class Node : public des::Model {
+class MonitorGroup : public des::Model {
  public:
-  Node(des::Simulator* _sim, const std::string& _name,
-       const des::Model* _parent, u32 _id, MonitorGroup* _group, u32 _gid);
-  virtual ~Node();
+  MonitorGroup(des::Simulator* _sim, const std::string& _name,
+               const des::Model* _parent, des::Tick _period, u32 _size);
+  ~MonitorGroup();
 
-  void future_recv(Message* _msg, des::Time _time);
-  virtual void recv(Message* _msg) = 0;
+  // this returns the next monitoring time (invalid time if no more)
+  des::Time next() const;
 
-  const u32 id;
-  const u32 gid;
+  // this is a notification from a Node after monitor event
+  void done(u32 _id, bool _recvd);
 
- protected:
-  u64 cyclesToSend(u32 _size, f64 _rate);
-
-  rng::Random prng;
+  const des::Tick period;
 
  private:
-  class RecvEvent : public des::Event {
-   public:
-    RecvEvent(des::Model* _model, des::EventHandler _handler, Message* _msg,
-              des::Time _time);
-    ~RecvEvent();
-    Message* msg;
-  };
-
-  class MonitorEvent : public des::Event {
-   public:
-    MonitorEvent(des::Model* _model, des::EventHandler _handler);
-    ~MonitorEvent();
-  };
-
-  void handle_recv(des::Event* _event);
-
-  void handle_monitor(des::Event* _event);
-
-  MonitorGroup* monitorGroup_;
-  MonitorEvent monitorEvent_;
-  u64 monitorCount_;
+  const u32 size_;
+  std::atomic<bool> anyRecvd_;
+  std::atomic<bool> enabled_;
+  std::atomic<u32> remaining_;
 };
 
-#endif  // RATECONTROL_NODE_H_
+#endif  // RATECONTROL_MONITORGROUP_H_

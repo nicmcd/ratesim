@@ -32,13 +32,29 @@
 
 #include <cassert>
 
-#include <chrono>
+#include "ratecontrol/Message.h"
+#include "ratecontrol/MonitorGroup.h"
 
 Node::Node(des::Simulator* _sim, const std::string& _name,
-           const des::Model* _parent, u32 _id)
-    : des::Model(_sim, _name, _parent), id(_id) {
-  // seed the random number generator with the id
-  prng.seed(std::chrono::system_clock::now().time_since_epoch().count() + id);
+           const des::Model* _parent, u32 _id, MonitorGroup* _monitorGroup,
+           u32 _gid)
+    : des::Model(_sim, _name, _parent), id(_id), gid(_gid),
+      monitorGroup_(_monitorGroup),
+      monitorEvent_(this, static_cast<des::EventHandler>(
+          &Node::handle_monitor)),
+      monitorCount_(0) {
+  // get a random seed (try for truly random)
+  std::random_device rnd;
+  std::uniform_int_distribution<u32> dist;
+  u32 seed = dist(rnd);
+
+  // seed the random number generator
+  prng.seed(seed);
+
+  // set the first monitor event
+  monitorEvent_.time = monitorGroup_->next();
+  assert(monitorEvent_.time.valid());
+  simulator->addEvent(&monitorEvent_);
 }
 
 Node::~Node() {}
@@ -70,8 +86,34 @@ Node::RecvEvent::RecvEvent(des::Model* _model, des::EventHandler _handler,
 
 Node::RecvEvent::~RecvEvent() {}
 
+Node::MonitorEvent::MonitorEvent(des::Model* _model, des::EventHandler _handler)
+    : des::Event(_model, _handler) {}
+
+Node::MonitorEvent::~MonitorEvent() {}
+
 void Node::handle_recv(des::Event* _event) {
   Node::RecvEvent* evt = reinterpret_cast<RecvEvent*>(_event);
+  monitorCount_ += evt->msg->size;
   this->recv(evt->msg);
   delete evt;
+}
+
+void Node::handle_monitor(des::Event* _event) {
+  (void)_event;  // unused
+
+  // compute rate
+  f64 rate = (f64)monitorCount_ / (f64)monitorGroup_->period;
+  dlogf("receive rate %f", rate);
+
+  // set the next monitor event
+  monitorEvent_.time = monitorGroup_->next();
+  if (monitorEvent_.time.valid()) {
+    simulator->addEvent(&monitorEvent_);
+  }
+
+  // report the results (must be after addEvent)
+  monitorGroup_->done(gid, monitorCount_ > 0);
+
+  // reset count
+  monitorCount_ = 0;
 }

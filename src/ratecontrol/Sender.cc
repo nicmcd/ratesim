@@ -34,12 +34,12 @@
 #include "ratecontrol/Receiver.h"
 
 Sender::Sender(des::Simulator* _sim, const std::string& _name,
-               const des::Model* _parent, u32 _id, std::atomic<s64>* _remaining,
-               u32 _minMessageSize, u32 _maxMessageSize,
-               std::vector<Receiver*>* _receivers)
-    : Node(_sim, _name, _parent, _id), remaining_(_remaining),
-      minMessageSize_(_minMessageSize), maxMessageSize_(_maxMessageSize),
-      receivers_(_receivers) {
+               const des::Model* _parent, u32 _id, MonitorGroup* _monitorGroup,
+               u32 _gid, std::atomic<s64>* _remaining, u32 _minMessageSize,
+               u32 _maxMessageSize, std::vector<Receiver*>* _receivers)
+    : Node(_sim, _name, _parent, _id, _monitorGroup, _gid),
+      remaining_(_remaining), minMessageSize_(_minMessageSize),
+      maxMessageSize_(_maxMessageSize), receivers_(_receivers) {
   // create the first event
   trySendMessageEvent(des::Time(0));
 }

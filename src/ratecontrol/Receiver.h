@@ -39,11 +39,13 @@
 #include "ratecontrol/Node.h"
 
 class Message;
+class MonitorGroup;
 
 class Receiver : public Node {
  public:
   Receiver(des::Simulator* _sim, const std::string& _name,
-           const des::Model* _parent, u32 _id);
+           const des::Model* _parent, u32 _id, MonitorGroup* _monitorGroup,
+           u32 _gid);
   ~Receiver();
 
   void recv(Message* _msg) override;

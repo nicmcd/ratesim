@@ -28,57 +28,50 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RATECONTROL_NODE_H_
-#define RATECONTROL_NODE_H_
+#include "ratecontrol/MonitorGroup.h"
 
-#include <des/des.h>
-#include <prim/prim.h>
-#include <rng/Random.h>
+#include <cassert>
 
-#include <string>
+MonitorGroup::MonitorGroup(des::Simulator* _sim, const std::string& _name,
+                           const des::Model* _parent, des::Tick _period,
+                           u32 _size)
+    : des::Model(_sim, _name, _parent), period(_period), size_(_size),
+      anyRecvd_(false), enabled_(true), remaining_(_size) {}
 
-class Message;
-class MonitorGroup;
+MonitorGroup::~MonitorGroup() {}
 
-class Node : public des::Model {
- public:
-  Node(des::Simulator* _sim, const std::string& _name,
-       const des::Model* _parent, u32 _id, MonitorGroup* _group, u32 _gid);
-  virtual ~Node();
+des::Time MonitorGroup::next() const {
+  if (enabled_) {
+    return des::Time(simulator->time() + period, 250);  // use 250 as epsilon
+  } else {
+    return des::Time();
+  }
+}
 
-  void future_recv(Message* _msg, des::Time _time);
-  virtual void recv(Message* _msg) = 0;
+void MonitorGroup::done(u32 _id, bool _recvd) {
+  // save rate
+  assert(_id < size_);
 
-  const u32 id;
-  const u32 gid;
+  // determine if any client received a message
+  if (_recvd) {
+    dlogf("%u recvd", _id);
+    anyRecvd_.store(true);
+  }
 
- protected:
-  u64 cyclesToSend(u32 _size, f64 _rate);
+  // determine if last to report
+  u32 rem = remaining_.fetch_sub(1);
+  assert(rem > 0);  // shouldn't be possible
+  dlogf("rem for id is %u", rem);
+  if (enabled_ && rem == 1) {
+    // if no client received, disable
+    if (!anyRecvd_) {
+      dlogf("shutting down");
+      enabled_.store(false);
+    }
 
-  rng::Random prng;
-
- private:
-  class RecvEvent : public des::Event {
-   public:
-    RecvEvent(des::Model* _model, des::EventHandler _handler, Message* _msg,
-              des::Time _time);
-    ~RecvEvent();
-    Message* msg;
-  };
-
-  class MonitorEvent : public des::Event {
-   public:
-    MonitorEvent(des::Model* _model, des::EventHandler _handler);
-    ~MonitorEvent();
-  };
-
-  void handle_recv(des::Event* _event);
-
-  void handle_monitor(des::Event* _event);
-
-  MonitorGroup* monitorGroup_;
-  MonitorEvent monitorEvent_;
-  u64 monitorCount_;
-};
-
-#endif  // RATECONTROL_NODE_H_
+    // reset for next time
+    anyRecvd_.store(false);
+    remaining_.store(size_);
+    dlogf("here!");
+  }
+}
