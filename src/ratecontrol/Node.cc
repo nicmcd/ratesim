@@ -33,16 +33,11 @@
 #include <cassert>
 
 #include "ratecontrol/Message.h"
-#include "ratecontrol/MonitorGroup.h"
+#include "ratecontrol/Network.h"
 
 Node::Node(des::Simulator* _sim, const std::string& _name,
-           const des::Model* _parent, u32 _id, MonitorGroup* _monitorGroup,
-           u32 _gid)
-    : des::Model(_sim, _name, _parent), id(_id), gid(_gid),
-      monitorGroup_(_monitorGroup),
-      monitorEvent_(this, static_cast<des::EventHandler>(
-          &Node::handle_monitor)),
-      monitorCount_(0) {
+           const des::Model* _parent, u32 _id, Network* _network)
+    : des::Model(_sim, _name, _parent), id(_id), network_(_network) {
   // get a random seed (try for truly random)
   std::random_device rnd;
   std::uniform_int_distribution<u32> dist;
@@ -51,10 +46,8 @@ Node::Node(des::Simulator* _sim, const std::string& _name,
   // seed the random number generator
   prng.seed(seed);
 
-  // set the first monitor event
-  monitorEvent_.time = monitorGroup_->next();
-  assert(monitorEvent_.time.valid());
-  simulator->addEvent(&monitorEvent_);
+  // register with the network
+  network_->registerNode(id, this);
 }
 
 Node::~Node() {}
@@ -62,6 +55,15 @@ Node::~Node() {}
 void Node::future_recv(Message* _msg, des::Time _time) {
   simulator->addEvent(new Node::RecvEvent(
       this, static_cast<des::EventHandler>(&Node::handle_recv), _msg, _time));
+}
+
+des::Time Node::send(u32 _size, u8 _type, void* _data, Node* _node, f64 _rate) {
+  Message* msg = new Message(id, _node->id, _size, _type, _data);
+  u64 cycles = cyclesToSend(_size, _rate);
+  msg->sent = simulator->time() + cycles;
+  des::Time recv(simulator->time() + (cycles + network_->delay()));
+  _node->future_recv(msg, recv);
+  return des::Time(simulator->time() + cycles);
 }
 
 u64 Node::cyclesToSend(u32 _size, f64 _rate) {
@@ -86,34 +88,9 @@ Node::RecvEvent::RecvEvent(des::Model* _model, des::EventHandler _handler,
 
 Node::RecvEvent::~RecvEvent() {}
 
-Node::MonitorEvent::MonitorEvent(des::Model* _model, des::EventHandler _handler)
-    : des::Event(_model, _handler) {}
-
-Node::MonitorEvent::~MonitorEvent() {}
-
 void Node::handle_recv(des::Event* _event) {
   Node::RecvEvent* evt = reinterpret_cast<RecvEvent*>(_event);
-  monitorCount_ += evt->msg->size;
+  evt->msg->recvd = simulator->time().tick;
   this->recv(evt->msg);
   delete evt;
-}
-
-void Node::handle_monitor(des::Event* _event) {
-  (void)_event;  // unused
-
-  // compute rate
-  f64 rate = (f64)monitorCount_ / (f64)monitorGroup_->period;
-  dlogf("receive rate %f", rate);
-
-  // set the next monitor event
-  monitorEvent_.time = monitorGroup_->next();
-  if (monitorEvent_.time.valid()) {
-    simulator->addEvent(&monitorEvent_);
-  }
-
-  // report the results (must be after addEvent)
-  monitorGroup_->done(gid, monitorCount_ > 0);
-
-  // reset count
-  monitorCount_ = 0;
 }

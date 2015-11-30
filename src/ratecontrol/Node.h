@@ -38,19 +38,24 @@
 #include <string>
 
 class Message;
-class MonitorGroup;
+class Network;
 
 class Node : public des::Model {
  public:
   Node(des::Simulator* _sim, const std::string& _name,
-       const des::Model* _parent, u32 _id, MonitorGroup* _group, u32 _gid);
+       const des::Model* _parent, u32 _id, Network* _network);
   virtual ~Node();
 
   void future_recv(Message* _msg, des::Time _time);
   virtual void recv(Message* _msg) = 0;
 
+  /*
+   * This returns the time in which the message will be completely sent by this
+   * Node. This is the time in which this node can send another message.
+   */
+  des::Time send(u32 _size, u8 _type, void* _data, Node* _node, f64 _rate);
+
   const u32 id;
-  const u32 gid;
 
  protected:
   u64 cyclesToSend(u32 _size, f64 _rate);
@@ -66,19 +71,9 @@ class Node : public des::Model {
     Message* msg;
   };
 
-  class MonitorEvent : public des::Event {
-   public:
-    MonitorEvent(des::Model* _model, des::EventHandler _handler);
-    ~MonitorEvent();
-  };
-
   void handle_recv(des::Event* _event);
 
-  void handle_monitor(des::Event* _event);
-
-  MonitorGroup* monitorGroup_;
-  MonitorEvent monitorEvent_;
-  u64 monitorCount_;
+  Network* network_;
 };
 
 #endif  // RATECONTROL_NODE_H_

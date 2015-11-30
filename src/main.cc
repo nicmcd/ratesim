@@ -40,7 +40,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ratecontrol/MonitorGroup.h"
+#include "ratecontrol/Network.h"
 #include "ratecontrol/Receiver.h"
 #include "ratecontrol/Sender.h"
 
@@ -82,7 +82,7 @@ s32 main(s32 _argc, char** _argv) {
   std::string controlAlgorithm = "none";
   u32 numThreads = 1;
   s64 numMessages = 1000000;  // must be u32
-  u64 period = 10000;
+  des::Tick networkDelay = 1000;
   u32 verbosity = 1;
 
   assert(numMessages >= 0 && numMessages <= U32_MAX);
@@ -102,8 +102,9 @@ s32 main(s32 _argc, char** _argv) {
                               false, numThreads, "u32", cmd);
     TCLAP::ValueArg<u32> mArg("m", "messages", "Number of total messages",
                               false, numMessages, "u32", cmd);
-    TCLAP::ValueArg<u64> pArg("p", "period", "Period of rate monitoring",
-                              false, period, "u64", cmd);
+    TCLAP::ValueArg<des::Tick> dArg("d", "delay",
+                                    "Network delay (latency in cycles)",
+                                    false, networkDelay, "des::Tick", cmd);
     TCLAP::ValueArg<u32> vArg("v", "verbose", "Turn on verbosity",
                               false, verbosity, "u32", cmd);
     // parse the command line
@@ -115,7 +116,7 @@ s32 main(s32 _argc, char** _argv) {
     controlAlgorithm = aArg.getValue();
     numThreads = tArg.getValue();
     numMessages = (s64)mArg.getValue();
-    period = pArg.getValue();
+    networkDelay = dArg.getValue();
     verbosity = vArg.getValue();
   } catch (TCLAP::ArgException &e) {
     fprintf(stderr, "error: %s for arg %s\n",
@@ -137,10 +138,6 @@ s32 main(s32 _argc, char** _argv) {
             "equal to 1.0\n");
     exit(-1);
   }
-  if (period == 0) {
-    fprintf(stderr, "monitoring period must be greater than zero\n");
-    exit(-1);
-  }
 
   // print args
   if (verbosity > 0) {
@@ -151,38 +148,35 @@ s32 main(s32 _argc, char** _argv) {
            "algorithm : %s\n"
            "threads   : %u\n"
            "messages  : %li\n"
-           "period    : %lu\n",
+           "delay     : %lu\n"
+           "\n",
            numSenders, numReceivers, rateLimit, controlAlgorithm.c_str(),
-           numThreads, numMessages, period);
+           numThreads, numMessages, (u64)networkDelay);
   }
 
   // create the simulation environment
   des::Simulator sim(numThreads);
 
-  // create receiver group
-  MonitorGroup recvGroup(&sim, "RecvGroup", nullptr, period, numReceivers);
-  recvGroup.debug = verbosity > 1;
+  // create a Network
+  Network network(&sim, "N", nullptr, networkDelay);
+  network.debug = verbosity > 1;
 
   // create receivers
   u32 nodeId = 0;
   std::vector<Receiver*> receivers(numReceivers, nullptr);
   for (u32 r = 0; r < numReceivers; r++) {
     receivers.at(r) = new Receiver(&sim, createName("R", r, numReceivers),
-                                   &recvGroup, nodeId++, &recvGroup, r);
+                                   &network, nodeId++, &network);
     receivers.at(r)->debug = verbosity > 1;
   }
-
-  // create send group
-  MonitorGroup sendGroup(&sim, "SendGroup", nullptr, period, numSenders);
-  sendGroup.debug = verbosity > 1;
 
   // create senders
   std::atomic<s64> remainingSendMessages(numMessages);
   std::vector<Sender*> senders(numSenders, nullptr);
   for (u32 s = 0; s < numSenders; s++) {
-    senders.at(s) = new Sender(&sim, createName("S", s, numSenders), &sendGroup,
-                               nodeId++, &sendGroup, s, &remainingSendMessages,
-                               1, 1000, &receivers);
+    senders.at(s) = new Sender(&sim, createName("S", s, numSenders), &network,
+                               nodeId++, &network,
+                               &remainingSendMessages, 1, 1000, &receivers);
     senders.at(s)->debug = verbosity > 1;
   }
 

@@ -28,26 +28,30 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RATECONTROL_RECEIVER_H_
-#define RATECONTROL_RECEIVER_H_
+#include "ratecontrol/Network.h"
 
-#include <des/des.h>
-#include <prim/prim.h>
+#include <cassert>
 
-#include <string>
+#include <utility>
 
-#include "ratecontrol/Node.h"
+Network::Network(des::Simulator* _sim, const std::string& _name,
+                 const des::Model* _parent, des::Tick _delay)
+    : des::Model(_sim, _name, _parent), delay_(_delay) {}
 
-class Message;
-class Network;
+Network::~Network() {}
 
-class Receiver : public Node {
- public:
-  Receiver(des::Simulator* _sim, const std::string& _name,
-           const des::Model* _parent, u32 _id, Network* _network);
-  ~Receiver();
+void Network::registerNode(u32 _id, Node* _node) {
+  assert(nodes_.insert(std::make_pair(_id, _node)).second);
+}
 
-  void recv(Message* _msg) override;
-};
+u32 Network::size() const {
+  return nodes_.size();
+}
 
-#endif  // RATECONTROL_RECEIVER_H_
+des::Tick Network::delay() const {
+  return delay_;
+}
+
+Node* Network::getNode(u32 _id) const {
+  return nodes_.at(_id);
+}

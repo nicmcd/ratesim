@@ -31,16 +31,21 @@
 #ifndef RATECONTROL_MESSAGE_H_
 #define RATECONTROL_MESSAGE_H_
 
+#include <des/des.h>
 #include <prim/prim.h>
 
 class Message {
  public:
-  Message(u32 _src, u32 _dst, u32 _size);
+  Message(u32 _src, u32 _dst, u32 _size, u8 _type, void* _data);
   ~Message();
 
   u32 src;
   u32 dst;
   u32 size;
+  u8 type;
+  void* data;
+  des::Tick sent;
+  des::Tick recvd;
 };
 
 #endif  // RATECONTROL_MESSAGE_H_

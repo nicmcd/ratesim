@@ -34,23 +34,23 @@
 #include "ratecontrol/Receiver.h"
 
 Sender::Sender(des::Simulator* _sim, const std::string& _name,
-               const des::Model* _parent, u32 _id, MonitorGroup* _monitorGroup,
-               u32 _gid, std::atomic<s64>* _remaining, u32 _minMessageSize,
+               const des::Model* _parent, u32 _id, Network* _network,
+               std::atomic<s64>* _remaining, u32 _minMessageSize,
                u32 _maxMessageSize, std::vector<Receiver*>* _receivers)
-    : Node(_sim, _name, _parent, _id, _monitorGroup, _gid),
-      remaining_(_remaining), minMessageSize_(_minMessageSize),
-      maxMessageSize_(_maxMessageSize), receivers_(_receivers) {
+    : Node(_sim, _name, _parent, _id, _network), remaining_(_remaining),
+      minMessageSize_(_minMessageSize), maxMessageSize_(_maxMessageSize),
+      receivers_(_receivers) {
   // create the first event
-  trySendMessageEvent(des::Time(0));
+  future_sendMessage(des::Time(0));
 }
 
 Sender::~Sender() {}
 
-void Sender::trySendMessageEvent(des::Time _time) {
+void Sender::future_sendMessage(des::Time _time) {
   s64 prev = remaining_->fetch_sub(1);
   if (prev > 0) {
     des::Event* event = new des::Event(this, static_cast<des::EventHandler>(
-        &Sender::sendMessageHandler), _time);
+        &Sender::handle_sendMessage), _time);
     simulator->addEvent(event);
   }
 }
@@ -60,21 +60,11 @@ void Sender::recv(Message* _msg) {
   delete _msg;
 }
 
-void Sender::sendMessageHandler(des::Event* _event) {
-  // get random destination
+void Sender::handle_sendMessage(des::Event* _event) {
   u32 dst = prng.nextU64(0, receivers_->size() - 1);
-
-  // create a random sized message
   u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
-  u64 cycles = cyclesToSend(size, 1.0);
-  Message* msg = new Message(id, receivers_->at(dst)->id, size);
-  des::Time time = simulator->time();
-  time.tick += cycles;
-  dlogf("dst=%u size=%u", dst, size);
-  receivers_->at(dst)->future_recv(msg, time);
-
-  // determine how long until the next message
-  trySendMessageEvent(time);
-
+  des::Time nextTime = send(size, 0, nullptr, receivers_->at(dst), 1.0);
+  future_sendMessage(nextTime);
+  dlogf("sent dst=%u size=%u", dst, size);
   delete _event;
 }

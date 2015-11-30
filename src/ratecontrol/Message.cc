@@ -30,7 +30,8 @@
  */
 #include "ratecontrol/Message.h"
 
-Message::Message(u32 _src, u32 _dst, u32 _size)
-    : src(_src), dst(_dst), size(_size) {}
+Message::Message(u32 _src, u32 _dst, u32 _size, u8 _type, void* _data)
+    : src(_src), dst(_dst), size(_size), type(_type), data(_data),
+      sent(des::TICK_INV), recvd(des::TICK_INV) {}
 
 Message::~Message() {}

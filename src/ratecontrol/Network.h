@@ -28,26 +28,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RATECONTROL_RECEIVER_H_
-#define RATECONTROL_RECEIVER_H_
+#ifndef RATECONTROL_NETWORK_H_
+#define RATECONTROL_NETWORK_H_
 
 #include <des/des.h>
 #include <prim/prim.h>
 
 #include <string>
+#include <unordered_map>
 
-#include "ratecontrol/Node.h"
+class Node;
 
-class Message;
-class Network;
-
-class Receiver : public Node {
+class Network : public des::Model {
  public:
-  Receiver(des::Simulator* _sim, const std::string& _name,
-           const des::Model* _parent, u32 _id, Network* _network);
-  ~Receiver();
+  Network(des::Simulator* _sim, const std::string& _name,
+          const des::Model* _parent, des::Tick _delay);
+  ~Network();
 
-  void recv(Message* _msg) override;
+  void registerNode(u32 _id, Node* _node);
+  u32 size() const;
+  des::Tick delay() const;
+  Node* getNode(u32 _id) const;
+
+ private:
+  des::Tick delay_;
+  std::unordered_map<u32, Node*> nodes_;
 };
 
-#endif  // RATECONTROL_RECEIVER_H_
+#endif  // RATECONTROL_NETWORK_H_
