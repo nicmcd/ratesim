@@ -46,20 +46,25 @@ class Node : public des::Model {
        const des::Model* _parent, u32 _id, Network* _network);
   virtual ~Node();
 
+  /*
+   * This creates a future event to receive a message at the specified time.
+   */
   void future_recv(Message* _msg, des::Time _time);
+
+  /*
+   * When a message is received at this node, this method will be called.
+   */
   virtual void recv(Message* _msg) = 0;
 
   /*
    * This returns the time in which the message will be completely sent by this
    * Node. This is the time in which this node can send another message.
    */
-  des::Time send(u32 _size, u8 _type, void* _data, Node* _node, f64 _rate);
+  des::Time send(Message* _msg, f64 _rate);
 
   const u32 id;
 
  protected:
-  u64 cyclesToSend(u32 _size, f64 _rate);
-
   rng::Random prng;
 
  private:
@@ -71,6 +76,7 @@ class Node : public des::Model {
     Message* msg;
   };
 
+  u64 cyclesToSend(u32 _size, f64 _rate);
   void handle_recv(des::Event* _event);
 
   Network* network_;

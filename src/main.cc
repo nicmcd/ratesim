@@ -175,8 +175,9 @@ s32 main(s32 _argc, char** _argv) {
   std::vector<Sender*> senders(numSenders, nullptr);
   for (u32 s = 0; s < numSenders; s++) {
     senders.at(s) = new Sender(&sim, createName("S", s, numSenders), &network,
-                               nodeId++, &network,
-                               &remainingSendMessages, 1, 1000, &receivers);
+                               nodeId++, &network, &remainingSendMessages, 1,
+                               1000, receivers.at(0)->id,
+                               receivers.at(numReceivers - 1)->id);
     senders.at(s)->debug = verbosity > 1;
   }
 

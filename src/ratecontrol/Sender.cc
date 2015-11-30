@@ -36,10 +36,10 @@
 Sender::Sender(des::Simulator* _sim, const std::string& _name,
                const des::Model* _parent, u32 _id, Network* _network,
                std::atomic<s64>* _remaining, u32 _minMessageSize,
-               u32 _maxMessageSize, std::vector<Receiver*>* _receivers)
+               u32 _maxMessageSize, u32 _receiverMinId, u32 _receiverMaxId)
     : Node(_sim, _name, _parent, _id, _network), remaining_(_remaining),
       minMessageSize_(_minMessageSize), maxMessageSize_(_maxMessageSize),
-      receivers_(_receivers) {
+      receiverMinId_(_receiverMinId), receiverMaxId_(_receiverMaxId) {
   // create the first event
   future_sendMessage(des::Time(0));
 }
@@ -61,9 +61,10 @@ void Sender::recv(Message* _msg) {
 }
 
 void Sender::handle_sendMessage(des::Event* _event) {
-  u32 dst = prng.nextU64(0, receivers_->size() - 1);
+  u32 dst = prng.nextU64(receiverMinId_, receiverMaxId_);
   u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
-  des::Time nextTime = send(size, 0, nullptr, receivers_->at(dst), 1.0);
+  Message* msg = new Message(id, dst, size, 0, nullptr);
+  des::Time nextTime = send(msg, 1.0);
   future_sendMessage(nextTime);
   dlogf("sent dst=%u size=%u", dst, size);
   delete _event;

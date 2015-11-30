@@ -37,7 +37,6 @@
 
 #include <atomic>
 #include <string>
-#include <vector>
 
 #include "ratecontrol/Node.h"
 
@@ -49,7 +48,7 @@ class Sender : public Node {
   Sender(des::Simulator* _sim, const std::string& _name,
          const des::Model* _parent, u32 _id, Network* _network,
          std::atomic<s64>* _remaining, u32 _minMessageSize, u32 _maxMessageSize,
-         std::vector<Receiver*>* _receivers);
+         u32 _receiverMinId, u32 _receiverMaxId);
   ~Sender();
   void future_sendMessage(des::Time _time);
 
@@ -61,7 +60,8 @@ class Sender : public Node {
   std::atomic<s64>* remaining_;
   u32 minMessageSize_;
   u32 maxMessageSize_;
-  std::vector<Receiver*>* receivers_;
+  u32 receiverMinId_;
+  u32 receiverMaxId_;
 };
 
 #endif  // RATECONTROL_SENDER_H_

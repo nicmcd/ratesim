@@ -57,13 +57,14 @@ void Node::future_recv(Message* _msg, des::Time _time) {
       this, static_cast<des::EventHandler>(&Node::handle_recv), _msg, _time));
 }
 
-des::Time Node::send(u32 _size, u8 _type, void* _data, Node* _node, f64 _rate) {
-  Message* msg = new Message(id, _node->id, _size, _type, _data);
-  u64 cycles = cyclesToSend(_size, _rate);
-  msg->sent = simulator->time() + cycles;
-  des::Time recv(simulator->time() + (cycles + network_->delay()));
-  _node->future_recv(msg, recv);
-  return des::Time(simulator->time() + cycles);
+des::Time Node::send(Message* _msg, f64 _rate) {
+  Node* node = network_->getNode(_msg->dst);
+  u64 cycles = cyclesToSend(_msg->size, _rate);
+  des::Time now = simulator->time();
+  _msg->sent = now + cycles;
+  des::Time recv(now + (cycles + network_->delay()));
+  node->future_recv(_msg, recv);
+  return des::Time(now + cycles);
 }
 
 u64 Node::cyclesToSend(u32 _size, f64 _rate) {
