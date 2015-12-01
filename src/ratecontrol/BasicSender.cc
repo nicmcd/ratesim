@@ -28,29 +28,53 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "ratecontrol/Sender.h"
+#include "ratecontrol/BasicSender.h"
+
+#include <cassert>
 
 #include "ratecontrol/Message.h"
-#include "ratecontrol/Receiver.h"
 
-Sender::Sender(des::Simulator* _sim, const std::string& _name,
-               const des::Model* _parent, u32 _id, Network* _network,
-               std::atomic<s64>* _remaining, u32 _minMessageSize,
-               u32 _maxMessageSize, u32 _receiverMinId, u32 _receiverMaxId)
-    : Node(_sim, _name, _parent, _id, _network), remaining_(_remaining),
-      minMessageSize_(_minMessageSize), maxMessageSize_(_maxMessageSize),
-      receiverMinId_(_receiverMinId), receiverMaxId_(_receiverMaxId) {}
+BasicSender::BasicSender(des::Simulator* _sim, const std::string& _name,
+                         const des::Model* _parent, u32 _id, Network* _network,
+                         std::atomic<s64>* _remaining, u32 _minMessageSize,
+                         u32 _maxMessageSize, u32 _receiverMinId,
+                         u32 _receiverMaxId, f64 _rate)
+    : Sender(_sim, _name, _parent, _id, _network, _remaining, _minMessageSize,
+             _maxMessageSize, _receiverMinId, _receiverMaxId), rate_(_rate) {
+  // create the first event
+  future_sendMessage(des::Time(0));
+}
 
-Sender::~Sender() {}
+BasicSender::~BasicSender() {}
 
-Message* Sender::getNextMessage() {
-  s64 prev = remaining_->fetch_sub(1);
-  if (prev > 0) {
-    u32 dst = prng.nextU64(receiverMinId_, receiverMaxId_);
-    u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
-    Message* msg = new Message(id, dst, size, 0, nullptr);
-    return msg;
-  } else {
-    return nullptr;
+void BasicSender::recv(Message* _msg) {
+  (void)_msg;  // unused
+  assert(false);
+}
+
+BasicSender::MessageEvent::MessageEvent(
+    BasicSender* _sender, des::EventHandler _handler, des::Time _time,
+    Message* _msg)
+    : des::Event(_sender, _handler, _time), msg(_msg) {}
+
+BasicSender::MessageEvent::~MessageEvent() {}
+
+void BasicSender::future_sendMessage(des::Time _time) {
+  Message* msg = getNextMessage();
+  if (msg) {
+    des::Event* event = new MessageEvent(
+        this, static_cast<des::EventHandler>(&BasicSender::handle_sendMessage),
+        _time, msg);
+    simulator->addEvent(event);
   }
+}
+
+void BasicSender::handle_sendMessage(des::Event* _event) {
+  MessageEvent* msgEvt = reinterpret_cast<MessageEvent*>(_event);
+  Message* msg = msgEvt->msg;
+
+  des::Time nextTime = send(msg, rate_);
+  future_sendMessage(nextTime);
+  dlogf("sent dst=%u size=%u", msg->dst, msg->size);
+  delete _event;
 }

@@ -28,29 +28,41 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef RATECONTROL_BASICSENDER_H_
+#define RATECONTROL_BASICSENDER_H_
+
+#include <prim/prim.h>
+
+#include <string>
+
 #include "ratecontrol/Sender.h"
 
-#include "ratecontrol/Message.h"
-#include "ratecontrol/Receiver.h"
+class Message;
 
-Sender::Sender(des::Simulator* _sim, const std::string& _name,
-               const des::Model* _parent, u32 _id, Network* _network,
-               std::atomic<s64>* _remaining, u32 _minMessageSize,
-               u32 _maxMessageSize, u32 _receiverMinId, u32 _receiverMaxId)
-    : Node(_sim, _name, _parent, _id, _network), remaining_(_remaining),
-      minMessageSize_(_minMessageSize), maxMessageSize_(_maxMessageSize),
-      receiverMinId_(_receiverMinId), receiverMaxId_(_receiverMaxId) {}
+class BasicSender : public Sender {
+ public:
+  BasicSender(des::Simulator* _sim, const std::string& _name,
+              const des::Model* _parent, u32 _id, Network* _network,
+              std::atomic<s64>* _remaining, u32 _minMessageSize,
+              u32 _maxMessageSize, u32 _receiverMinId, u32 _receiverMaxId,
+              f64 _rate);
+  ~BasicSender();
 
-Sender::~Sender() {}
+  void recv(Message* _msg) override;
 
-Message* Sender::getNextMessage() {
-  s64 prev = remaining_->fetch_sub(1);
-  if (prev > 0) {
-    u32 dst = prng.nextU64(receiverMinId_, receiverMaxId_);
-    u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
-    Message* msg = new Message(id, dst, size, 0, nullptr);
-    return msg;
-  } else {
-    return nullptr;
-  }
-}
+ private:
+  class MessageEvent : public des::Event {
+   public:
+    MessageEvent(BasicSender* _sender, des::EventHandler _handler,
+                 des::Time _time, Message* _msg);
+    ~MessageEvent();
+    Message* msg;
+  };
+
+  void future_sendMessage(des::Time _time);
+  void handle_sendMessage(des::Event* _event);
+
+  f64 rate_;
+};
+
+#endif  // RATECONTROL_BASICSENDER_H_

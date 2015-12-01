@@ -49,10 +49,10 @@ class Sender : public Node {
          const des::Model* _parent, u32 _id, Network* _network,
          std::atomic<s64>* _remaining, u32 _minMessageSize, u32 _maxMessageSize,
          u32 _receiverMinId, u32 _receiverMaxId);
-  ~Sender();
-  void future_sendMessage(des::Time _time);
+  virtual ~Sender();
 
-  void recv(Message* _msg) override;
+ protected:
+  Message* getNextMessage();
 
  private:
   void handle_sendMessage(des::Event* _event);

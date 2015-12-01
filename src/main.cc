@@ -40,32 +40,25 @@
 #include <tuple>
 #include <vector>
 
+#include "ratecontrol/BasicSender.h"
 #include "ratecontrol/Network.h"
 #include "ratecontrol/Receiver.h"
 #include "ratecontrol/Sender.h"
 
-/*
-des::Model* createModel(const std::string& _type, des::Simulator* _sim,
-                        const std::string& _name, u64 _id, u64 _events,
-                        bool _shiftyEpsilon, bool _verbose) {
-  if (_type == "empty") {
-    return new example::EmptyModel(
-        _sim, _name, nullptr, _id, _events, _shiftyEpsilon, _verbose);
-  } else if (_type == "sha1") {
-    return new example::Sha1Model(
-        _sim, _name, nullptr, _id, _events, _shiftyEpsilon, _verbose);
-  } else if (_type == "sha512") {
-    return new example::Sha512Model(
-        _sim, _name, nullptr, _id, _events, _shiftyEpsilon, _verbose);
-  } else if (_type == "simple") {
-    return new example::SimpleModel(
-        _sim, _name, nullptr, _id, _events, _shiftyEpsilon, _verbose);
+Sender* createSender(const std::string& _algorithm, des::Simulator* _sim,
+                     const std::string& _name, const des::Model* _parent,
+                     u32 _id, Network* _network, std::atomic<s64>* _remaining,
+                     u32 _minMessageSize, u32 _maxMessageSize,
+                     u32 _receiverMinId, u32 _receiverMaxId, f64 _rateLimit) {
+  if (_algorithm == "none") {
+    return new BasicSender(
+        _sim, _name, _parent, _id, _network, _remaining, _minMessageSize,
+        _maxMessageSize, _receiverMinId, _receiverMaxId, _rateLimit);
   } else {
-    fprintf(stderr, "invalid model type: %s\n", _type.c_str());
+    fprintf(stderr, "invalid algorithm: %s\n", _algorithm.c_str());
     exit(-1);
   }
 }
-*/
 
 std::string createName(const std::string& _prefix, u32 _id, u32 _total) {
   u32 digits = (u32)ceil(log10(_total));
@@ -174,10 +167,11 @@ s32 main(s32 _argc, char** _argv) {
   std::atomic<s64> remainingSendMessages(numMessages);
   std::vector<Sender*> senders(numSenders, nullptr);
   for (u32 s = 0; s < numSenders; s++) {
-    senders.at(s) = new Sender(&sim, createName("S", s, numSenders), &network,
-                               nodeId++, &network, &remainingSendMessages, 1,
-                               1000, receivers.at(0)->id,
-                               receivers.at(numReceivers - 1)->id);
+    senders.at(s) = createSender(controlAlgorithm,
+        &sim, createName("S", s, numSenders), &network,
+        nodeId++, &network, &remainingSendMessages, 1,
+        1000, receivers.at(0)->id,
+        receivers.at(numReceivers - 1)->id, rateLimit);
     senders.at(s)->debug = verbosity > 1;
   }
 

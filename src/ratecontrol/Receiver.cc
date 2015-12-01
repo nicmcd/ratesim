@@ -30,6 +30,8 @@
  */
 #include "ratecontrol/Receiver.h"
 
+#include <cassert>
+
 #include "ratecontrol/Message.h"
 
 Receiver::Receiver(des::Simulator* _sim, const std::string& _name,
@@ -39,6 +41,7 @@ Receiver::Receiver(des::Simulator* _sim, const std::string& _name,
 Receiver::~Receiver() {}
 
 void Receiver::recv(Message* _msg) {
+  assert(_msg->type == 0);  // Receivers only accept message type 0
   dlogf("received message");
   delete _msg;
 }
