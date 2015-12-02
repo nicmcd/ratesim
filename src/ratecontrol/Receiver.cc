@@ -42,6 +42,5 @@ Receiver::~Receiver() {}
 
 void Receiver::recv(Message* _msg) {
   assert(_msg->type == 0);  // Receivers only accept message type 0
-  dlogf("received message");
   delete _msg;
 }

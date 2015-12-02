@@ -53,23 +53,18 @@ Node::Node(des::Simulator* _sim, const std::string& _name,
 Node::~Node() {}
 
 void Node::future_recv(Message* _msg, des::Time _time) {
-  simulator->addEvent(new Node::RecvEvent(
+  simulator->addEvent(new Node::MsgEvent(
       this, static_cast<des::EventHandler>(&Node::handle_recv), _msg, _time));
 }
 
-des::Time Node::send(Message* _msg, f64 _rate) {
-  Node* node = network_->getNode(_msg->dst);
-  u64 cycles = cyclesToSend(_msg->size, _rate);
-  des::Time now = simulator->time();
-  _msg->sent = now + cycles;
-  des::Time recv(now + (cycles + network_->delay()));
-  node->future_recv(_msg, recv);
-  return des::Time(now + cycles);
+void Node::future_send(Message* _msg, des::Time _time) {
+  simulator->addEvent(new Node::MsgEvent(
+      this, static_cast<des::EventHandler>(&Node::handle_send), _msg, _time));
 }
 
 u64 Node::cyclesToSend(u32 _size, f64 _rate) {
   // if the number of cycles is not even,
-  //  probablistic cycles must be computed
+  //  probabilistic cycles must be computed
   f64 cycles = _size / _rate;
   f64 fraction = modf(cycles, &cycles);
   if (fraction != 0.0) {
@@ -83,15 +78,27 @@ u64 Node::cyclesToSend(u32 _size, f64 _rate) {
   return (u64)cycles;
 }
 
-Node::RecvEvent::RecvEvent(des::Model* _model, des::EventHandler _handler,
+Node::MsgEvent::MsgEvent(des::Model* _model, des::EventHandler _handler,
                            Message* _msg, des::Time _time)
     : des::Event(_model, _handler, _time), msg(_msg) {}
 
-Node::RecvEvent::~RecvEvent() {}
+Node::MsgEvent::~MsgEvent() {}
 
 void Node::handle_recv(des::Event* _event) {
-  Node::RecvEvent* evt = reinterpret_cast<RecvEvent*>(_event);
-  evt->msg->recvd = simulator->time().tick;
+  Node::MsgEvent* evt = reinterpret_cast<MsgEvent*>(_event);
+  dlogf("received message: %s", evt->msg->toString().c_str());
+  evt->msg->recvd = simulator->time();
   this->recv(evt->msg);
+  delete evt;
+}
+
+void Node::handle_send(des::Event* _event) {
+  Node::MsgEvent* evt = reinterpret_cast<MsgEvent*>(_event);
+  Node* node = network_->getNode(evt->msg->dst);
+  des::Time now = simulator->time();
+  evt->msg->sent = now;
+  des::Time recv(now + evt->msg->size + network_->delay());
+  node->future_recv(evt->msg, recv);
+  dlogf("sent message: %s", evt->msg->toString().c_str());
   delete evt;
 }

@@ -29,13 +29,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <des/des.h>
+#include <jsoncpp/json/json.h>
 #include <prim/prim.h>
-#include <tclap/CmdLine.h>
+#include <settings/Settings.h>
 
 #include <cassert>
 #include <cmath>
 
 #include <atomic>
+#include <iomanip>
+#include <sstream>
 #include <thread>
 #include <tuple>
 #include <vector>
@@ -43,22 +46,10 @@
 #include "ratecontrol/BasicSender.h"
 #include "ratecontrol/Network.h"
 #include "ratecontrol/Receiver.h"
+#include "ratecontrol/Relay.h"
+#include "ratecontrol/RelaySender.h"
 #include "ratecontrol/Sender.h"
 
-Sender* createSender(const std::string& _algorithm, des::Simulator* _sim,
-                     const std::string& _name, const des::Model* _parent,
-                     u32 _id, Network* _network, std::atomic<s64>* _remaining,
-                     u32 _minMessageSize, u32 _maxMessageSize,
-                     u32 _receiverMinId, u32 _receiverMaxId, f64 _rateLimit) {
-  if (_algorithm == "none") {
-    return new BasicSender(
-        _sim, _name, _parent, _id, _network, _remaining, _minMessageSize,
-        _maxMessageSize, _receiverMinId, _receiverMaxId, _rateLimit);
-  } else {
-    fprintf(stderr, "invalid algorithm: %s\n", _algorithm.c_str());
-    exit(-1);
-  }
-}
 
 std::string createName(const std::string& _prefix, u32 _id, u32 _total) {
   u32 digits = (u32)ceil(log10(_total));
@@ -68,54 +59,18 @@ std::string createName(const std::string& _prefix, u32 _id, u32 _total) {
 }
 
 s32 main(s32 _argc, char** _argv) {
-  /* set defaults here */
-  u32 numSenders = 1;
-  u32 numReceivers = 1;
-  f32 rateLimit = 0.5;
-  std::string controlAlgorithm = "none";
-  u32 numThreads = 1;
-  s64 numMessages = 1000000;  // must be u32
-  des::Tick networkDelay = 1000;
-  u32 verbosity = 1;
+  Json::Value settings;
+  settings::Settings::commandLine(_argc, _argv, &settings);
 
-  assert(numMessages >= 0 && numMessages <= U32_MAX);
-
-  try {
-    // define command line and arguments
-    TCLAP::CmdLine cmd("Rate control simulation", ' ', "0.0.1");
-    TCLAP::ValueArg<u32> sArg("s", "senders", "Number of senders",
-                              false, numSenders, "u32", cmd);
-    TCLAP::ValueArg<u32> rArg("r", "receivers", "Number of receivers",
-                              false, numReceivers, "u32", cmd);
-    TCLAP::ValueArg<f32> lArg("l", "limit", "rate limit",
-                              false, rateLimit, "f32", cmd);
-    TCLAP::ValueArg<std::string> aArg("a", "algorithm", "Rate limit algorithm",
-                                      false, controlAlgorithm, "string", cmd);
-    TCLAP::ValueArg<u32> tArg("t", "threads", "Number of threads",
-                              false, numThreads, "u32", cmd);
-    TCLAP::ValueArg<u32> mArg("m", "messages", "Number of total messages",
-                              false, numMessages, "u32", cmd);
-    TCLAP::ValueArg<des::Tick> dArg("d", "delay",
-                                    "Network delay (latency in cycles)",
-                                    false, networkDelay, "des::Tick", cmd);
-    TCLAP::ValueArg<u32> vArg("v", "verbose", "Turn on verbosity",
-                              false, verbosity, "u32", cmd);
-    // parse the command line
-    cmd.parse(_argc, _argv);
-    // gather arguments
-    numSenders = sArg.getValue();
-    numReceivers = rArg.getValue();
-    rateLimit = lArg.getValue();
-    controlAlgorithm = aArg.getValue();
-    numThreads = tArg.getValue();
-    numMessages = (s64)mArg.getValue();
-    networkDelay = dArg.getValue();
-    verbosity = vArg.getValue();
-  } catch (TCLAP::ArgException &e) {
-    fprintf(stderr, "error: %s for arg %s\n",
-            e.error().c_str(), e.argId().c_str());
-    exit(-1);
-  }
+  u32 numSenders = settings["senders"].asUInt();
+  u32 numReceivers = settings["receivers"].asUInt();;
+  u32 numRelays = settings["relays"].asUInt();
+  des::Tick networkDelay = (des::Tick)settings["network_delay"].asUInt64();
+  f64 rateLimit = settings["rate_limit"].asDouble();
+  s64 numMessages = (s64)settings["messages"].asUInt();
+  u32 numThreads = settings["threads"].asUInt();
+  u32 verbosity = settings["verbosity"].asUInt();
+  std::string algorithm = settings["algorithm"].asString();
 
   // verify inputs
   if (numSenders < 1) {
@@ -126,26 +81,15 @@ s32 main(s32 _argc, char** _argv) {
     fprintf(stderr, "there must be at least one receiver\n");
     exit(-1);
   }
-  if (rateLimit <= 0.0 || rateLimit > 1.0) {
-    fprintf(stderr, "rate limit must be greater than 0.0 and less than or "
-            "equal to 1.0\n");
+  if (rateLimit <= 0.0) {
+    fprintf(stderr, "rate limit must be greater than 0.0\n");
     exit(-1);
   }
 
-  // print args
   if (verbosity > 0) {
-    printf("Settings:\n"
-           "senders   : %u\n"
-           "receivers : %u\n"
-           "limit     : %f\n"
-           "algorithm : %s\n"
-           "threads   : %u\n"
-           "messages  : %li\n"
-           "delay     : %lu\n"
-           "\n",
-           numSenders, numReceivers, rateLimit, controlAlgorithm.c_str(),
-           numThreads, numMessages, (u64)networkDelay);
+    printf("%s\n", settings::Settings::toString(settings).c_str());
   }
+
 
   // create the simulation environment
   des::Simulator sim(numThreads);
@@ -163,15 +107,39 @@ s32 main(s32 _argc, char** _argv) {
     receivers.at(r)->debug = verbosity > 1;
   }
 
+  // create relays
+  std::vector<Relay*> relays(numRelays, nullptr);
+  for (u32 r = 0; r < numRelays; r++) {
+    f64 relayRateLimit = rateLimit / numRelays;
+    assert(relayRateLimit <= 1.0);
+    relays.at(r) = new Relay(&sim, createName("I", r, numRelays),
+                             &network, nodeId++, &network, relayRateLimit);
+    relays.at(r)->debug = verbosity > 1;
+  }
+
   // create senders
   std::atomic<s64> remainingSendMessages(numMessages);
   std::vector<Sender*> senders(numSenders, nullptr);
   for (u32 s = 0; s < numSenders; s++) {
-    senders.at(s) = createSender(controlAlgorithm,
-        &sim, createName("S", s, numSenders), &network,
-        nodeId++, &network, &remainingSendMessages, 1,
-        1000, receivers.at(0)->id,
-        receivers.at(numReceivers - 1)->id, rateLimit);
+    if (algorithm == "basic") {
+      senders.at(s) = new BasicSender(
+          &sim, createName("S", s, numSenders), &network,
+          nodeId++, &network, &remainingSendMessages, 1,
+          1000, receivers.at(0)->id, receivers.at(numReceivers - 1)->id,
+          1.0);
+
+    } else if (algorithm == "relay") {
+      senders.at(s) = new RelaySender(
+          &sim, createName("S", s, numSenders), &network,
+          nodeId++, &network, &remainingSendMessages, 1,
+          1000, receivers.at(0)->id, receivers.at(numReceivers - 1)->id,
+          relays.at(0)->id, relays.at(numRelays - 1)->id, 1);
+
+    } else {
+      fprintf(stderr, "invalid algorithm: %s\n", algorithm.c_str());
+      exit(-1);
+    }
+
     senders.at(s)->debug = verbosity > 1;
   }
 
@@ -181,6 +149,9 @@ s32 main(s32 _argc, char** _argv) {
   // cleanup
   for (u32 r = 0; r < numReceivers; r++) {
     delete receivers.at(r);
+  }
+  for (u32 r = 0; r < numRelays; r++) {
+    delete relays.at(r);
   }
   for (u32 s = 0; s < numSenders; s++) {
     delete senders.at(s);

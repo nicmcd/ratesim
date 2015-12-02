@@ -38,6 +38,7 @@
 #include "ratecontrol/Sender.h"
 
 class Message;
+class Network;
 
 class BasicSender : public Sender {
  public:
@@ -51,18 +52,10 @@ class BasicSender : public Sender {
   void recv(Message* _msg) override;
 
  private:
-  class MessageEvent : public des::Event {
-   public:
-    MessageEvent(BasicSender* _sender, des::EventHandler _handler,
-                 des::Time _time, Message* _msg);
-    ~MessageEvent();
-    Message* msg;
-  };
+  void trySendMessage();
+  void handle_trySendMessage(des::Event* _event);
 
-  void future_sendMessage(des::Time _time);
-  void handle_sendMessage(des::Event* _event);
-
-  f64 rate_;
+  const f64 rate_;
 };
 
 #endif  // RATECONTROL_BASICSENDER_H_

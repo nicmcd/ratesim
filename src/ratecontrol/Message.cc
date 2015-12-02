@@ -30,8 +30,16 @@
  */
 #include "ratecontrol/Message.h"
 
+#include <sstream>
+
 Message::Message(u32 _src, u32 _dst, u32 _size, u8 _type, void* _data)
-    : src(_src), dst(_dst), size(_size), type(_type), data(_data),
-      sent(des::TICK_INV), recvd(des::TICK_INV) {}
+    : src(_src), dst(_dst), size(_size), type(_type), data(_data) {}
 
 Message::~Message() {}
+
+std::string Message::toString() const {
+  std::stringstream ss;
+  ss << "src=" << src << " dst=" << dst << " size=" << size <<
+      " type=" << (u64)type << " data*=" << (u64)data;
+  return ss.str();
+}

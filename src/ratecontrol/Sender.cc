@@ -48,7 +48,7 @@ Message* Sender::getNextMessage() {
   if (prev > 0) {
     u32 dst = prng.nextU64(receiverMinId_, receiverMaxId_);
     u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
-    Message* msg = new Message(id, dst, size, 0, nullptr);
+    Message* msg = new Message(id, dst, size, Message::PLAIN, nullptr);
     return msg;
   } else {
     return nullptr;

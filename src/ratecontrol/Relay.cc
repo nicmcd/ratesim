@@ -28,64 +28,47 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RATECONTROL_NODE_H_
-#define RATECONTROL_NODE_H_
+#include "ratecontrol/Relay.h"
 
-#include <des/des.h>
-#include <prim/prim.h>
-#include <rng/Random.h>
+#include <cassert>
 
-#include <string>
+#include "ratecontrol/Message.h"
 
-class Message;
-class Network;
+Relay::Relay(des::Simulator* _sim, const std::string& _name,
+             const des::Model* _parent, u32 _id, Network* _network,
+             f64 _rate)
+    : Node(_sim, _name, _parent, _id, _network), rate_(_rate), nextTime_(0) {
+  assert(rate_ > 0.0 && rate_ <= 1.0);
+}
 
-class Node : public des::Model {
- public:
-  Node(des::Simulator* _sim, const std::string& _name,
-       const des::Model* _parent, u32 _id, Network* _network);
-  virtual ~Node();
+Relay::~Relay() {}
 
-  /*
-   * This creates a future event to receive a message at the specified time.
-   */
-  void future_recv(Message* _msg, des::Time _time);
+void Relay::recv(Message* _msg) {
+  assert(_msg->type == Message::RELAY_REQUEST);
 
-  /*
-   * When a message is received at this node, this method will be called.
-   */
-  virtual void recv(Message* _msg) = 0;
+  // determine when the message will be sent
+  des::Time now = simulator->time();
+  nextTime_ = des::Time::max(nextTime_, now.plusEps());  // NOLINT
 
-  const u32 id;
+  // create a response for the source
+  Request* req = reinterpret_cast<Request*>(_msg->data);
+  Response* resp = new Response();
+  resp->reqId = req->reqId;
+  Message* respMsg = new Message(id, _msg->src, 1, Message::RELAY_RESPONSE,
+                                 resp);
 
- protected:
-  /*
-   * This sends a message from this node.
-   */
-  void future_send(Message* _msg, des::Time _time);
+  // reformat the message for the real destination
+  _msg->dst = req->msgDst;
+  _msg->size -= 1;
+  _msg->type = Message::PLAIN;
+  _msg->data = nullptr;
+  delete req;
 
-  /*
-   * This computes how many cycles would be needed to send a message at a given
-   * rate.
-   */
-  u64 cyclesToSend(u32 _size, f64 _rate);
+  // send both messages
+  future_send(respMsg, nextTime_);
+  future_send(_msg, nextTime_);
 
-  rng::Random prng;
-
- private:
-  class MsgEvent : public des::Event {
-   public:
-    MsgEvent(des::Model* _model, des::EventHandler _handler, Message* _msg,
-             des::Time _time);
-    ~MsgEvent();
-    Message* msg;
-  };
-
-
-  void handle_recv(des::Event* _event);
-  void handle_send(des::Event* _event);
-
-  Network* network_;
-};
-
-#endif  // RATECONTROL_NODE_H_
+  // compute the next time based on the token bucket algorithm
+  u64 cycles = cyclesToSend(_msg->size, rate_);
+  nextTime_ = nextTime_ + cycles;
+}

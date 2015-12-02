@@ -9,11 +9,13 @@ MAIN_FILE     := src/main.cc
 HEADER_DIRS   := \
 	../libprim/inc \
 	../libdes/inc \
-	../librng/inc
+	../librng/inc \
+	../libsettings/inc
 STATIC_LIBS   := \
 	../libprim/bld/libprim.a \
 	../libdes/bld/libdes.a \
-	../librng/bld/librng.a
+	../librng/bld/librng.a \
+	../libsettings/bld/libsettings.a
 
 #--------------------- Cpp Lint -----------------------------------------------#
 LINT          := $(HOME)/.makeccpp/cpplint/cpplint.py
@@ -31,7 +33,7 @@ CXX_FLAGS     := -std=c++11 -Wall -Wextra -pedantic -Wfatal-errors
 CXX_FLAGS     += -march=native -g -O3 -flto
 CXX_FLAGS     += -pthread
 #CXX_FLAGS     += -DNDEBUGLOG
-LINK_FLAGS    := -lpthread -lcrypto -lssl -Wl,--no-as-needed
+LINK_FLAGS    := -lpthread -lz -ljsoncpp -Wl,--no-as-needed
 
 #--------------------- Auto Makefile ------------------------------------------#
 include ~/.makeccpp/auto_bin.mk

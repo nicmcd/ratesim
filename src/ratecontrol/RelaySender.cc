@@ -28,46 +28,72 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "ratecontrol/BasicSender.h"
+#include "ratecontrol/RelaySender.h"
 
 #include <cassert>
 
 #include "ratecontrol/Message.h"
+#include "ratecontrol/Relay.h"
 
-BasicSender::BasicSender(des::Simulator* _sim, const std::string& _name,
+RelaySender::RelaySender(des::Simulator* _sim, const std::string& _name,
                          const des::Model* _parent, u32 _id, Network* _network,
                          std::atomic<s64>* _remaining, u32 _minMessageSize,
                          u32 _maxMessageSize, u32 _receiverMinId,
-                         u32 _receiverMaxId, f64 _rate)
+                         u32 _receiverMaxId, u32 _relayMinId, u32 _relayMaxId,
+                         u32 _maxOutstanding)
     : Sender(_sim, _name, _parent, _id, _network, _remaining, _minMessageSize,
-             _maxMessageSize, _receiverMinId, _receiverMaxId), rate_(_rate) {
+             _maxMessageSize, _receiverMinId, _receiverMaxId),
+      relayMinId_(_relayMinId), relayMaxId_(_relayMaxId), relayReqId_(0),
+      maxOutstanding_(_maxOutstanding), outstanding_(0) {
   // create the first event
   trySendMessage();
 }
 
-BasicSender::~BasicSender() {}
+RelaySender::~RelaySender() {}
 
-void BasicSender::recv(Message* _msg) {
-  (void)_msg;  // unused
-  assert(false);
+void RelaySender::recv(Message* _msg) {
+  assert(_msg->type == Message::RELAY_RESPONSE);
+  delete reinterpret_cast<Relay::Response*>(_msg->data);
+  delete _msg;
+  assert(outstanding_ > 0);
+  outstanding_--;
+  trySendMessage();
 }
 
-void BasicSender::trySendMessage() {
-  Message* msg = getNextMessage();
-  if (msg) {
-    des::Time now = simulator->time();
-    future_send(msg, now.plusEps());
-    u64 cycles = cyclesToSend(msg->size, rate_);
-    des::Time nextTry = now + cycles;
-    des::Event* event = new des::Event(
-        this, static_cast<des::EventHandler>(
-            &BasicSender::handle_trySendMessage),
-        nextTry);
-    simulator->addEvent(event);
+void RelaySender::trySendMessage() {
+  if (outstanding_ < maxOutstanding_) {
+    Message* msg = getNextMessage();
+    if (msg) {
+      // increment oustanding count
+      outstanding_++;
+
+      // reformat the message to be a relay request
+      Relay::Request* req = new Relay::Request();
+      req->reqId = relayReqId_;
+      req->msgDst = msg->dst;
+      relayReqId_++;
+      msg->dst = prng.nextU64(relayMinId_, relayMaxId_);
+      msg->type = Message::RELAY_REQUEST;
+      msg->data = req;
+
+      // send the message
+      des::Time now = simulator->time();
+      future_send(msg, now.plusEps());
+
+      // if outstanding is not maxed out, send more next cycle
+      if (outstanding_ < maxOutstanding_) {
+        des::Time nextTry = now + 1;
+        des::Event* event = new des::Event(
+            this, static_cast<des::EventHandler>(
+                &RelaySender::handle_trySendMessage),
+            nextTry);
+        simulator->addEvent(event);
+      }
+    }
   }
 }
 
-void BasicSender::handle_trySendMessage(des::Event* _event) {
+void RelaySender::handle_trySendMessage(des::Event* _event) {
   trySendMessage();
   delete _event;
 }

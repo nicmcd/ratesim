@@ -28,64 +28,39 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RATECONTROL_NODE_H_
-#define RATECONTROL_NODE_H_
+#ifndef RATECONTROL_RELAY_H_
+#define RATECONTROL_RELAY_H_
 
 #include <des/des.h>
 #include <prim/prim.h>
-#include <rng/Random.h>
 
 #include <string>
+
+#include "ratecontrol/Node.h"
 
 class Message;
 class Network;
 
-class Node : public des::Model {
+class Relay : public Node {
  public:
-  Node(des::Simulator* _sim, const std::string& _name,
-       const des::Model* _parent, u32 _id, Network* _network);
-  virtual ~Node();
-
-  /*
-   * This creates a future event to receive a message at the specified time.
-   */
-  void future_recv(Message* _msg, des::Time _time);
-
-  /*
-   * When a message is received at this node, this method will be called.
-   */
-  virtual void recv(Message* _msg) = 0;
-
-  const u32 id;
-
- protected:
-  /*
-   * This sends a message from this node.
-   */
-  void future_send(Message* _msg, des::Time _time);
-
-  /*
-   * This computes how many cycles would be needed to send a message at a given
-   * rate.
-   */
-  u64 cyclesToSend(u32 _size, f64 _rate);
-
-  rng::Random prng;
-
- private:
-  class MsgEvent : public des::Event {
-   public:
-    MsgEvent(des::Model* _model, des::EventHandler _handler, Message* _msg,
-             des::Time _time);
-    ~MsgEvent();
-    Message* msg;
+  struct Request {
+    u64 reqId;
+    u32 msgDst;
+  };
+  struct Response {
+    u64 reqId;
   };
 
+  Relay(des::Simulator* _sim, const std::string& _name,
+        const des::Model* _parent, u32 _id, Network* _network,
+        f64 _rate);
+  ~Relay();
 
-  void handle_recv(des::Event* _event);
-  void handle_send(des::Event* _event);
+  void recv(Message* _msg);
 
-  Network* network_;
+ private:
+  const f64 rate_;
+  des::Time nextTime_;
 };
 
-#endif  // RATECONTROL_NODE_H_
+#endif  // RATECONTROL_RELAY_H_

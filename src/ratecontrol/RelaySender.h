@@ -28,64 +28,39 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RATECONTROL_NODE_H_
-#define RATECONTROL_NODE_H_
+#ifndef RATECONTROL_RELAYSENDER_H_
+#define RATECONTROL_RELAYSENDER_H_
 
-#include <des/des.h>
 #include <prim/prim.h>
-#include <rng/Random.h>
 
 #include <string>
 
+#include "ratecontrol/Sender.h"
+
 class Message;
 class Network;
+class Relay;
 
-class Node : public des::Model {
+class RelaySender : public Sender {
  public:
-  Node(des::Simulator* _sim, const std::string& _name,
-       const des::Model* _parent, u32 _id, Network* _network);
-  virtual ~Node();
+  RelaySender(des::Simulator* _sim, const std::string& _name,
+              const des::Model* _parent, u32 _id, Network* _network,
+              std::atomic<s64>* _remaining, u32 _minMessageSize,
+              u32 _maxMessageSize, u32 _receiverMinId, u32 _receiverMaxId,
+              u32 _relayMinId, u32 _relayMaxId, u32 _maxOutstanding);
+  ~RelaySender();
 
-  /*
-   * This creates a future event to receive a message at the specified time.
-   */
-  void future_recv(Message* _msg, des::Time _time);
-
-  /*
-   * When a message is received at this node, this method will be called.
-   */
-  virtual void recv(Message* _msg) = 0;
-
-  const u32 id;
-
- protected:
-  /*
-   * This sends a message from this node.
-   */
-  void future_send(Message* _msg, des::Time _time);
-
-  /*
-   * This computes how many cycles would be needed to send a message at a given
-   * rate.
-   */
-  u64 cyclesToSend(u32 _size, f64 _rate);
-
-  rng::Random prng;
+  void recv(Message* _msg) override;
 
  private:
-  class MsgEvent : public des::Event {
-   public:
-    MsgEvent(des::Model* _model, des::EventHandler _handler, Message* _msg,
-             des::Time _time);
-    ~MsgEvent();
-    Message* msg;
-  };
+  void trySendMessage();
+  void handle_trySendMessage(des::Event* _event);
 
-
-  void handle_recv(des::Event* _event);
-  void handle_send(des::Event* _event);
-
-  Network* network_;
+  const u32 relayMinId_;
+  const u32 relayMaxId_;
+  u64 relayReqId_;
+  const u32 maxOutstanding_;
+  u32 outstanding_;
 };
 
-#endif  // RATECONTROL_NODE_H_
+#endif  // RATECONTROL_RELAYSENDER_H_
