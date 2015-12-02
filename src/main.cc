@@ -71,6 +71,7 @@ s32 main(s32 _argc, char** _argv) {
   u32 numThreads = settings["threads"].asUInt();
   u32 verbosity = settings["verbosity"].asUInt();
   std::string algorithm = settings["algorithm"].asString();
+  std::string logFile = settings["log_file"].asString();
 
   // verify inputs
   if (numSenders < 1) {
@@ -86,13 +87,18 @@ s32 main(s32 _argc, char** _argv) {
     exit(-1);
   }
 
-  if (verbosity > 0) {
-    printf("%s\n", settings::Settings::toString(settings).c_str());
-  }
-
-
   // create the simulation environment
   des::Simulator sim(numThreads);
+
+  // create a logger for the simulation
+  des::Logger logger(logFile);
+  sim.setLogger(&logger);
+
+  // log the configuration
+  if (verbosity > 0) {
+    std::string conf = settings::Settings::toString(settings);
+    logger.log(conf.c_str(), conf.size());
+  }
 
   // create a Network
   Network network(&sim, "N", nullptr, networkDelay);

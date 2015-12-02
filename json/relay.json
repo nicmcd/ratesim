@@ -7,5 +7,6 @@
   "messages": 3,
   "threads": 1,
   "verbosity": 2,
-  "algorithm": "relay"
+  "algorithm": "relay",
+  "log_file": "relay.log"
 }

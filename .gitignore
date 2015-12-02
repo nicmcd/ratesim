@@ -31,3 +31,7 @@
 bld/
 bin/
 inc/
+
+# ratesim output logs
+*.log
+*.log.gz
