@@ -1,0 +1,11 @@
+{
+  "senders": 1,
+  "receivers": 1,
+  "relays": 1,
+  "network_delay": 1000,
+  "rate_limit": 0.5,
+  "messages": 3,
+  "threads": 1,
+  "verbosity": 2,
+  "algorithm": "relay"
+}
