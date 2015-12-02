@@ -68,6 +68,9 @@ s32 main(s32 _argc, char** _argv) {
   des::Tick networkDelay = (des::Tick)settings["network_delay"].asUInt64();
   f64 rateLimit = settings["rate_limit"].asDouble();
   s64 numMessages = (s64)settings["messages"].asUInt();
+  u32 minMessageSize = settings["min_message_size"].asUInt();
+  u32 maxMessageSize = settings["max_message_size"].asUInt();
+  u32 maxRelayOutstanding = settings["max_relay_outstanding"].asUInt();
   u32 numThreads = settings["threads"].asUInt();
   u32 verbosity = settings["verbosity"].asUInt();
   std::string algorithm = settings["algorithm"].asString();
@@ -84,6 +87,20 @@ s32 main(s32 _argc, char** _argv) {
   }
   if (rateLimit <= 0.0) {
     fprintf(stderr, "rate limit must be greater than 0.0\n");
+    exit(-1);
+  }
+  if (minMessageSize == 0) {
+    fprintf(stderr, "minimum message size must be greater than 0\n");
+    exit(-1);
+  }
+  if (maxMessageSize < minMessageSize) {
+    fprintf(stderr, "maximum message size must be greater than or equal to"
+            " the minimum message size\n");
+    exit(-1);
+  }
+  if (maxRelayOutstanding == 0) {
+    fprintf(stderr, "maximum relay outstanding messages must be greater than "
+            "0\n");
     exit(-1);
   }
 
@@ -130,16 +147,17 @@ s32 main(s32 _argc, char** _argv) {
     if (algorithm == "basic") {
       senders.at(s) = new BasicSender(
           &sim, createName("S", s, numSenders), &network,
-          nodeId++, &network, &remainingSendMessages, 1,
-          1000, receivers.at(0)->id, receivers.at(numReceivers - 1)->id,
-          1.0);
+          nodeId++, &network, &remainingSendMessages, minMessageSize,
+          maxMessageSize, receivers.at(0)->id,
+          receivers.at(numReceivers - 1)->id, 1.0);
 
     } else if (algorithm == "relay") {
       senders.at(s) = new RelaySender(
           &sim, createName("S", s, numSenders), &network,
-          nodeId++, &network, &remainingSendMessages, 1,
-          1000, receivers.at(0)->id, receivers.at(numReceivers - 1)->id,
-          relays.at(0)->id, relays.at(numRelays - 1)->id, 1);
+          nodeId++, &network, &remainingSendMessages, minMessageSize,
+          maxMessageSize, receivers.at(0)->id,
+          receivers.at(numReceivers - 1)->id, relays.at(0)->id,
+          relays.at(numRelays - 1)->id, maxRelayOutstanding);
 
     } else {
       fprintf(stderr, "invalid algorithm: %s\n", algorithm.c_str());

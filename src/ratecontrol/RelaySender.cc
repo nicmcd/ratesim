@@ -73,6 +73,7 @@ void RelaySender::trySendMessage() {
       req->msgDst = msg->dst;
       relayReqId_++;
       msg->dst = prng.nextU64(relayMinId_, relayMaxId_);
+      msg->size++;  // increase for request header
       msg->type = Message::RELAY_REQUEST;
       msg->data = req;
 
