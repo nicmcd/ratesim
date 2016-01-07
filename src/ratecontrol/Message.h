@@ -38,12 +38,13 @@
 
 class Message {
  public:
-  Message(u32 _src, u32 _dst, u32 _size, u8 _type, void* _data);
+  Message(u32 _src, u32 _dst, u32 _size, u64 _trans, u8 _type, void* _data);
   ~Message();
 
   u32 src;
   u32 dst;
   u32 size;
+  u64 trans;
   u8 type;
   void* data;
   des::Time sent;
