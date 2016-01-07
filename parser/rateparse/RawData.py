@@ -27,17 +27,21 @@ class RawData(object):
     if filename.endswith('.gz'):
       with gzip.open(filename, 'rb') as fd:
         if filename.endswith('.dat.gz'):
-          self.settings, self.data, self.stats = pickle.load(fd)
+          self.settings, self.data, self.transactions, self.stats = \
+              pickle.load(fd)
         elif filename.endswith('.log.gz'):
-          self.settings, self.data, self.stats = self.parse(fd)
+          self.settings, self.data, self.transactions, self.stats = \
+              self.parse(fd)
         else:
           raise Exception('invalid file type: {0}'.format(filename))
     else:
       with open(filename, 'rb') as fd:
         if filename.endswith('.dat'):
-          self.settings, self.data, self.stats = pickle.load(fd)
+          self.settings, self.data, self.transactions, self.stats = \
+              pickle.load(fd)
         elif filename.endswith('.log'):
-          self.settings, self.data, self.stats = self.parse(fd)
+          self.settings, self.data, self.transactions, self.stats = \
+              self.parse(fd)
         else:
           raise Exception('invalid file type: {0}'.format(filename))
 
@@ -49,9 +53,10 @@ class RawData(object):
       fd (file descriptor) : the open file to be parsed
 
     Return:
-      (settings, actions, stats) :
+      (settings, actions, transactions, stats) :
         'settings' is loaded from the JSON representing the configuration
         'actions' is a nested dict with all send and receive actions
+        'transactions' is a nested dict with all transactions
         'stats' is a dict with simulation stats
     """
 
@@ -59,6 +64,7 @@ class RawData(object):
     mode = 'settings'
     settings = ''
     actions = {}
+    transactions = {}
     stats = {}
 
     for line in fd:
@@ -109,7 +115,21 @@ class RawData(object):
           atype = 'recv' if func == 'handle_recv' else 'send'
           onode = elems['src'] if func == 'handle_recv' else elems['dst']
           actions[name][atype].append((tick, onode, elems['size'],
-                                       elems['type']))
+                                       elems['trans'], elems['type']))
+
+          # do transaction handling
+          if func == 'handle_send':
+            if elems['trans'] not in transactions:
+              transactions[elems['trans']] = {'msgs': 1, 'start': tick,
+                                              'end': 0}
+            else:
+              transactions[elems['trans']]['msgs'] += 1
+              transactions[elems['trans']]['start'] = \
+                  min(transactions[elems['trans']]['start'], tick)
+          else:
+            assert func == 'handle_recv'
+            transactions[elems['trans']]['end'] = \
+                max(transactions[elems['trans']]['end'], tick)
         else:
           raise Exception('WTF line is this??: {0}'.format(line))
 
@@ -130,7 +150,7 @@ class RawData(object):
         raise Exception('invalid mode: {0}'.format(mode))
 
     print('done parsing')
-    return (settings, actions, stats)
+    return (settings, actions, transactions, stats)
 
   def write(self, filename):
     """
@@ -140,7 +160,7 @@ class RawData(object):
       filename (string) : the filename to store the data
                           (end with .gz for compressions)
     """
-    everything = (self.settings, self.data, self.stats)
+    everything = (self.settings, self.data, self.transactions, self.stats)
 
     if filename.endswith('.gz'):
       if not filename.endswith('.dat.gz'):
@@ -186,8 +206,8 @@ class RawData(object):
           actions = dev['send'] if send else dev['recv']
 
           # handle each action
-          for tick, onode, size, type in actions:
-            #print('{0} {1} {2} {3}'.format(tick, onode, size, type))
+          for tick, onode, size, trans, type in actions:
+            #print('{0} {1} {2} {3} {4}'.format(tick, onode, size, trans, type))
 
             # send ops tick is before
             if send:
@@ -203,3 +223,17 @@ class RawData(object):
           break
 
     return rate
+
+  def extractLatencies(self):
+    times = []
+    latencies = []
+
+    # find all latencies
+    for trans in self.transactions:
+      start = self.transactions[trans]['start']
+      end = self.transactions[trans]['end']
+      times.append(end)
+      latencies.append(end - start + 1)
+
+    # return times and latencies
+    return times, latencies
