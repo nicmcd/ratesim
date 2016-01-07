@@ -61,6 +61,7 @@ class RelaySender : public Sender {
   u64 relayReqId_;
   const u32 maxOutstanding_;
   u32 outstanding_;
+  bool tryPending_;
 };
 
 #endif  // RATECONTROL_RELAYSENDER_H_

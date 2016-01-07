@@ -86,7 +86,7 @@ Node::MsgEvent::~MsgEvent() {}
 
 void Node::handle_recv(des::Event* _event) {
   Node::MsgEvent* evt = reinterpret_cast<MsgEvent*>(_event);
-  dlogf("received message: %s", evt->msg->toString().c_str());
+  dlogf("%s", evt->msg->toString().c_str());
   evt->msg->recvd = simulator->time();
   this->recv(evt->msg);
   delete evt;
@@ -99,6 +99,6 @@ void Node::handle_send(des::Event* _event) {
   evt->msg->sent = now;
   des::Time recv(now + evt->msg->size + network_->delay());
   node->future_recv(evt->msg, recv);
-  dlogf("sent message: %s", evt->msg->toString().c_str());
+  dlogf("%s", evt->msg->toString().c_str());
   delete evt;
 }

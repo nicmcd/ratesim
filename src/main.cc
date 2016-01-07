@@ -54,7 +54,7 @@
 std::string createName(const std::string& _prefix, u32 _id, u32 _total) {
   u32 digits = (u32)ceil(log10(_total));
   std::stringstream ss;
-  ss << _prefix << std::setw(digits) << std::setfill('0') << _id;
+  ss << _prefix << '_' << std::setw(digits) << std::setfill('0') << _id;
   return ss.str();
 }
 
@@ -118,15 +118,16 @@ s32 main(s32 _argc, char** _argv) {
   }
 
   // create a Network
-  Network network(&sim, "N", nullptr, networkDelay);
+  Network network(&sim, "Network", nullptr, networkDelay);
   network.debug = verbosity > 1;
 
   // create receivers
   u32 nodeId = 0;
   std::vector<Receiver*> receivers(numReceivers, nullptr);
   for (u32 r = 0; r < numReceivers; r++) {
-    receivers.at(r) = new Receiver(&sim, createName("R", r, numReceivers),
-                                   &network, nodeId++, &network);
+    receivers.at(r) = new Receiver(
+        &sim, createName("Receiver", r, numReceivers), nullptr, nodeId++,
+        &network);
     receivers.at(r)->debug = verbosity > 1;
   }
 
@@ -135,8 +136,8 @@ s32 main(s32 _argc, char** _argv) {
   for (u32 r = 0; r < numRelays; r++) {
     f64 relayRateLimit = rateLimit / numRelays;
     assert(relayRateLimit <= 1.0);
-    relays.at(r) = new Relay(&sim, createName("I", r, numRelays),
-                             &network, nodeId++, &network, relayRateLimit);
+    relays.at(r) = new Relay(&sim, createName("Relay", r, numRelays),
+                             nullptr, nodeId++, &network, relayRateLimit);
     relays.at(r)->debug = verbosity > 1;
   }
 
@@ -146,14 +147,14 @@ s32 main(s32 _argc, char** _argv) {
   for (u32 s = 0; s < numSenders; s++) {
     if (algorithm == "basic") {
       senders.at(s) = new BasicSender(
-          &sim, createName("S", s, numSenders), &network,
+          &sim, createName("Sender", s, numSenders), nullptr,
           nodeId++, &network, &remainingSendMessages, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
           receivers.at(numReceivers - 1)->id, 1.0);
 
     } else if (algorithm == "relay") {
       senders.at(s) = new RelaySender(
-          &sim, createName("S", s, numSenders), &network,
+          &sim, createName("Sender", s, numSenders), nullptr,
           nodeId++, &network, &remainingSendMessages, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
           receivers.at(numReceivers - 1)->id, relays.at(0)->id,

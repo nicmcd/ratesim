@@ -1,15 +1,15 @@
 {
-  "senders": 1,
-  "receivers": 1,
+  "senders": 100,
+  "receivers": 50,
   "relays": 0,
-  "network_delay": 1000,
-  "rate_limit": 1.5,
-  "messages": 3,
-  "min_message_size": 10,
-  "max_message_size": 10,
-  "max_relay_outstanding": 1,
+  "network_delay": 10,
+  "rate_limit": 20,
+  "messages": 5000,
+  "min_message_size": 2,
+  "max_message_size": 20,
+  "max_relay_outstanding": 5,
   "threads": 1,
   "verbosity": 2,
   "algorithm": "basic",
-  "log_file": "basic.log"
+  "log_file": "basic.log.gz"
 }

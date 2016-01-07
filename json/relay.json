@@ -1,15 +1,15 @@
 {
-  "senders": 1,
-  "receivers": 1,
-  "relays": 1,
-  "network_delay": 1000,
-  "rate_limit": 0.5,
-  "messages": 3,
-  "min_message_size": 10,
-  "max_message_size": 10,
-  "max_relay_outstanding": 1,
+  "senders": 100,
+  "receivers": 50,
+  "relays": 30,
+  "network_delay": 10,
+  "rate_limit": 25.0,
+  "messages": 5000,
+  "min_message_size": 2,
+  "max_message_size": 30,
+  "max_relay_outstanding": 5,
   "threads": 1,
   "verbosity": 2,
   "algorithm": "relay",
-  "log_file": "relay.log"
+  "log_file": "relay.log.gz"
 }
