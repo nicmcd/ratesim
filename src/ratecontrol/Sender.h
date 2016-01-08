@@ -35,7 +35,6 @@
 #include <prim/prim.h>
 #include <rng/Random.h>
 
-#include <atomic>
 #include <string>
 
 #include "ratecontrol/Node.h"
@@ -47,21 +46,29 @@ class Sender : public Node {
  public:
   Sender(des::Simulator* _sim, const std::string& _name,
          const des::Model* _parent, u32 _id, Network* _network,
-         std::atomic<s64>* _remaining, u32 _minMessageSize, u32 _maxMessageSize,
-         u32 _receiverMinId, u32 _receiverMaxId);
+         u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
+         u32 _receiverMaxId);
   virtual ~Sender();
 
+  void setInjectionRate(f64 _rate);
+  f64 getInjectionRate() const;
+
  protected:
-  Message* getNextMessage();
+  /*
+   * Subclasses must override this to implement custom send algorithms.
+   */
+  virtual void sendMessage(Message* _msg) = 0;
 
  private:
+  void handle_injectionRateEvent(des::Event* _event);
   void handle_sendMessage(des::Event* _event);
 
-  std::atomic<s64>* remaining_;
+  f64 injectionRate_;
   u32 minMessageSize_;
   u32 maxMessageSize_;
   u32 receiverMinId_;
   u32 receiverMaxId_;
+  u32 messageCount_;
 };
 
 #endif  // RATECONTROL_SENDER_H_

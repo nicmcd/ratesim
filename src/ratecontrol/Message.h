@@ -47,14 +47,20 @@ class Message {
   u64 trans;
   u8 type;
   void* data;
-  des::Time sent;
-  des::Time recvd;
 
   static const u8 PLAIN = 0;
   static const u8 RELAY_REQUEST = 1;
   static const u8 RELAY_RESPONSE = 2;
 
   std::string toString() const;
+};
+
+class MessageEvent : public des::Event {
+ public:
+  MessageEvent(des::Model* _model, des::EventHandler _handler, des::Time _time,
+               Message* _msg);
+  ~MessageEvent();
+  Message* msg;
 };
 
 #endif  // RATECONTROL_MESSAGE_H_

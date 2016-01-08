@@ -36,14 +36,10 @@
 
 BasicSender::BasicSender(des::Simulator* _sim, const std::string& _name,
                          const des::Model* _parent, u32 _id, Network* _network,
-                         std::atomic<s64>* _remaining, u32 _minMessageSize,
-                         u32 _maxMessageSize, u32 _receiverMinId,
-                         u32 _receiverMaxId, f64 _rate)
-    : Sender(_sim, _name, _parent, _id, _network, _remaining, _minMessageSize,
-             _maxMessageSize, _receiverMinId, _receiverMaxId), rate_(_rate) {
-  // create the first event
-  trySendMessage();
-}
+                         u32 _minMessageSize, u32 _maxMessageSize,
+                         u32 _receiverMinId, u32 _receiverMaxId)
+    : Sender(_sim, _name, _parent, _id, _network, _minMessageSize,
+             _maxMessageSize, _receiverMinId, _receiverMaxId) {}
 
 BasicSender::~BasicSender() {}
 
@@ -52,22 +48,6 @@ void BasicSender::recv(Message* _msg) {
   assert(false);
 }
 
-void BasicSender::trySendMessage() {
-  Message* msg = getNextMessage();
-  if (msg) {
-    des::Time now = simulator->time();
-    future_send(msg, now.plusEps());
-    u64 cycles = cyclesToSend(msg->size, rate_);
-    des::Time nextTry = now + cycles;
-    des::Event* event = new des::Event(
-        this, static_cast<des::EventHandler>(
-            &BasicSender::handle_trySendMessage),
-        nextTry);
-    simulator->addEvent(event);
-  }
-}
-
-void BasicSender::handle_trySendMessage(des::Event* _event) {
-  trySendMessage();
-  delete _event;
+void BasicSender::sendMessage(Message* _msg) {
+  send(_msg);
 }

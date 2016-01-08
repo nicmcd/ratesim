@@ -60,9 +60,15 @@ class Node : public des::Model {
 
  protected:
   /*
-   * This sends a message from this node.
+   * This sends a message from this node at the next available time.
    */
-  void future_send(Message* _msg, des::Time _time);
+  void send(Message* _msg);
+
+  /*
+   * This sends a message from this node at the next available time after
+   * the time specified.
+   */
+  void send(Message* _msg, des::Time _time);
 
   /*
    * This computes how many cycles would be needed to send a message at a given
@@ -73,18 +79,11 @@ class Node : public des::Model {
   rng::Random prng;
 
  private:
-  class MsgEvent : public des::Event {
-   public:
-    MsgEvent(des::Model* _model, des::EventHandler _handler, Message* _msg,
-             des::Time _time);
-    ~MsgEvent();
-    Message* msg;
-  };
-
-
   void handle_recv(des::Event* _event);
   void handle_send(des::Event* _event);
+  void handle_delayedSend(des::Event* _event);
 
+  des::Time nextSendTime_;
   Network* network_;
 };
 

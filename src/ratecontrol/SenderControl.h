@@ -28,30 +28,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RATECONTROL_BASICSENDER_H_
-#define RATECONTROL_BASICSENDER_H_
+#ifndef RATECONTROL_SENDERCONTROL_H_
+#define RATECONTROL_SENDERCONTROL_H_
 
+#include <des/des.h>
+#include <jsoncpp/json/json.h>
 #include <prim/prim.h>
 
 #include <string>
+#include <vector>
 
 #include "ratecontrol/Sender.h"
 
-class Message;
-class Network;
-
-class BasicSender : public Sender {
+class SenderControl : public des::Model {
  public:
-  BasicSender(des::Simulator* _sim, const std::string& _name,
-              const des::Model* _parent, u32 _id, Network* _network,
-              u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
-              u32 _receiverMaxId);
-  ~BasicSender();
+  SenderControl(des::Simulator* _sim, const std::string& _name,
+                const des::Model* _parent, std::vector<Sender*>* _senders,
+                Json::Value _settings);
+  ~SenderControl();
 
-  void recv(Message* _msg) override;
+ private:
+  void handle_rateChange(des::Event* _event);
 
- protected:
-  void sendMessage(Message* _msg) override;
+  std::vector<Sender*>* senders_;
 };
 
-#endif  // RATECONTROL_BASICSENDER_H_
+#endif  // RATECONTROL_SENDERCONTROL_H_

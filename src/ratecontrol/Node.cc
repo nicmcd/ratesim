@@ -37,7 +37,8 @@
 
 Node::Node(des::Simulator* _sim, const std::string& _name,
            const des::Model* _parent, u32 _id, Network* _network)
-    : des::Model(_sim, _name, _parent), id(_id), network_(_network) {
+    : des::Model(_sim, _name, _parent), id(_id), nextSendTime_(0),
+      network_(_network) {
   // get a random seed (try for truly random)
   std::random_device rnd;
   std::uniform_int_distribution<u32> dist;
@@ -53,13 +54,25 @@ Node::Node(des::Simulator* _sim, const std::string& _name,
 Node::~Node() {}
 
 void Node::future_recv(Message* _msg, des::Time _time) {
-  simulator->addEvent(new Node::MsgEvent(
-      this, static_cast<des::EventHandler>(&Node::handle_recv), _msg, _time));
+  simulator->addEvent(new MessageEvent(
+      this, static_cast<des::EventHandler>(&Node::handle_recv), _time, _msg));
 }
 
-void Node::future_send(Message* _msg, des::Time _time) {
-  simulator->addEvent(new Node::MsgEvent(
-      this, static_cast<des::EventHandler>(&Node::handle_send), _msg, _time));
+void Node::send(Message* _msg) {
+  // renew the next send time
+  nextSendTime_ = des::Time::max(simulator->time().plusEps(),  // NOLINT
+                                 nextSendTime_);
+
+  // create and add the send message event
+  simulator->addEvent(new MessageEvent(
+      this, static_cast<des::EventHandler>(&Node::handle_send), nextSendTime_,
+      _msg));
+}
+
+void Node::send(Message* _msg, des::Time _time) {
+  simulator->addEvent(new MessageEvent(
+      this, static_cast<des::EventHandler>(&Node::handle_delayedSend), _time,
+      _msg));
 }
 
 u64 Node::cyclesToSend(u32 _size, f64 _rate) {
@@ -78,27 +91,25 @@ u64 Node::cyclesToSend(u32 _size, f64 _rate) {
   return (u64)cycles;
 }
 
-Node::MsgEvent::MsgEvent(des::Model* _model, des::EventHandler _handler,
-                           Message* _msg, des::Time _time)
-    : des::Event(_model, _handler, _time), msg(_msg) {}
-
-Node::MsgEvent::~MsgEvent() {}
-
 void Node::handle_recv(des::Event* _event) {
-  Node::MsgEvent* evt = reinterpret_cast<MsgEvent*>(_event);
+  MessageEvent* evt = reinterpret_cast<MessageEvent*>(_event);
   dlogf("%s", evt->msg->toString().c_str());
-  evt->msg->recvd = simulator->time();
   this->recv(evt->msg);
   delete evt;
 }
 
 void Node::handle_send(des::Event* _event) {
-  Node::MsgEvent* evt = reinterpret_cast<MsgEvent*>(_event);
+  MessageEvent* evt = reinterpret_cast<MessageEvent*>(_event);
   Node* node = network_->getNode(evt->msg->dst);
   des::Time now = simulator->time();
-  evt->msg->sent = now;
   des::Time recv(now + evt->msg->size + network_->delay());
   node->future_recv(evt->msg, recv);
   dlogf("%s", evt->msg->toString().c_str());
+  delete evt;
+}
+
+void Node::handle_delayedSend(des::Event* _event) {
+  MessageEvent* evt = reinterpret_cast<MessageEvent*>(_event);
+  send(evt->msg);
   delete evt;
 }

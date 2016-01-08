@@ -49,14 +49,9 @@
 #include "ratecontrol/Relay.h"
 #include "ratecontrol/RelaySender.h"
 #include "ratecontrol/Sender.h"
+#include "ratecontrol/SenderControl.h"
 
-
-std::string createName(const std::string& _prefix, u32 _id, u32 _total) {
-  u32 digits = (u32)ceil(log10(_total));
-  std::stringstream ss;
-  ss << _prefix << '_' << std::setw(digits) << std::setfill('0') << _id;
-  return ss.str();
-}
+std::string createName(const std::string& _prefix, u32 _id, u32 _total);
 
 s32 main(s32 _argc, char** _argv) {
   Json::Value settings;
@@ -67,7 +62,6 @@ s32 main(s32 _argc, char** _argv) {
   u32 numRelays = settings["relays"].asUInt();
   des::Tick networkDelay = (des::Tick)settings["network_delay"].asUInt64();
   f64 rateLimit = settings["rate_limit"].asDouble();
-  s64 numMessages = (s64)settings["messages"].asUInt();
   u32 minMessageSize = settings["min_message_size"].asUInt();
   u32 maxMessageSize = settings["max_message_size"].asUInt();
   u32 maxRelayOutstanding = settings["max_relay_outstanding"].asUInt();
@@ -142,20 +136,19 @@ s32 main(s32 _argc, char** _argv) {
   }
 
   // create senders
-  std::atomic<s64> remainingSendMessages(numMessages);
   std::vector<Sender*> senders(numSenders, nullptr);
   for (u32 s = 0; s < numSenders; s++) {
     if (algorithm == "basic") {
       senders.at(s) = new BasicSender(
           &sim, createName("Sender", s, numSenders), nullptr,
-          nodeId++, &network, &remainingSendMessages, minMessageSize,
+          nodeId++, &network, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
-          receivers.at(numReceivers - 1)->id, 1.0);
+          receivers.at(numReceivers - 1)->id);
 
     } else if (algorithm == "relay") {
       senders.at(s) = new RelaySender(
           &sim, createName("Sender", s, numSenders), nullptr,
-          nodeId++, &network, &remainingSendMessages, minMessageSize,
+          nodeId++, &network, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
           receivers.at(numReceivers - 1)->id, relays.at(0)->id,
           relays.at(numRelays - 1)->id, maxRelayOutstanding);
@@ -167,6 +160,10 @@ s32 main(s32 _argc, char** _argv) {
 
     senders.at(s)->debug = verbosity > 1;
   }
+
+  SenderControl senderControl(&sim, "SenderControl", nullptr, &senders,
+                              settings["sender_control"]);
+  senderControl.debug = verbosity > 0;
 
   // run simulation
   sim.simulate(verbosity > 0);
@@ -183,4 +180,11 @@ s32 main(s32 _argc, char** _argv) {
   }
 
   return 0;
+}
+
+std::string createName(const std::string& _prefix, u32 _id, u32 _total) {
+  u32 digits = (u32)ceil(log10(_total));
+  std::stringstream ss;
+  ss << _prefix << '_' << std::setw(digits) << std::setfill('0') << _id;
+  return ss.str();
 }

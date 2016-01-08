@@ -104,34 +104,45 @@ class RawData(object):
           for elem in line.split():
             sep = elem.find('=')
             key = elem[:sep]
-            val = int(elem[sep+1:])
+            try:
+              val = int(elem[sep+1:])
+            except:
+              val = float(elem[sep+1:])
             elems[key] = val
 
-          cnode = elems['src'] if func == 'handle_send' else elems['dst']
+          if func == 'handle_send' or func == 'handle_recv':
+            # store action data
+            cnode = elems['src'] if func == 'handle_send' else elems['dst']
 
-          if name not in actions:
-            actions[name] = {'id': cnode, 'send': [], 'recv': []}
+            if name not in actions:
+              actions[name] = {'id': cnode, 'send': [], 'recv': []}
 
-          atype = 'recv' if func == 'handle_recv' else 'send'
-          onode = elems['src'] if func == 'handle_recv' else elems['dst']
-          actions[name][atype].append((tick, onode, elems['size'],
-                                       elems['trans'], elems['type']))
+            atype = 'recv' if func == 'handle_recv' else 'send'
+            onode = elems['src'] if func == 'handle_recv' else elems['dst']
+            actions[name][atype].append((tick, onode, elems['size'],
+                                         elems['trans'], elems['type']))
 
-          # do transaction handling
-          if func == 'handle_send':
-            if elems['trans'] not in transactions:
-              transactions[elems['trans']] = {'msgs': 1, 'start': tick,
-                                              'end': 0}
-            else:
+            # do transaction handling
+            if func == 'handle_send':
+              assert elems['trans'] in transactions
               transactions[elems['trans']]['msgs'] += 1
               transactions[elems['trans']]['start'] = \
                   min(transactions[elems['trans']]['start'], tick)
+            else:
+              assert func == 'handle_recv'
+              transactions[elems['trans']]['end'] = \
+                  max(transactions[elems['trans']]['end'], tick)
+
+          elif func == 'handle_sendMessage':
+            # do transaction handling
+            assert elems['trans'] not in transactions
+            transactions[elems['trans']] = {'msgs': 0, 'create': tick,
+                                            'start': float('inf'), 'end': 0}
+
           else:
-            assert func == 'handle_recv'
-            transactions[elems['trans']]['end'] = \
-                max(transactions[elems['trans']]['end'], tick)
+            pass  # some other function
         else:
-          raise Exception('WTF line is this??: {0}'.format(line))
+          pass  # some other line type
 
       # gather stats
       elif mode == 'stats':
@@ -173,7 +184,7 @@ class RawData(object):
       with open(filename, 'wb') as fd:
         pickle.dump(everything, fd)
 
-  def extractRate(self, regexs, send, rate=None):
+  def extractRate(self, regexs, traffic, rate=None):
     """
     This extracts a rate vector from a select group of nodes.
 
@@ -185,6 +196,9 @@ class RawData(object):
     Return:
       (numpy array) : the rate as a numpy array
     """
+
+    assert traffic == 'send' or traffic == 'recv'
+    send = traffic == 'send'
 
     if rate:
       assert len(rate) == self.stats['Total simulation ticks'] + 1
@@ -224,16 +238,22 @@ class RawData(object):
 
     return rate
 
-  def extractLatencies(self):
+  def extractLatencies(self, mode):
+    assert mode == 'onwire' or mode == 'total'
+
     times = []
     latencies = []
 
     # find all latencies
     for trans in self.transactions:
+      create = self.transactions[trans]['create']
       start = self.transactions[trans]['start']
       end = self.transactions[trans]['end']
       times.append(end)
-      latencies.append(end - start + 1)
+      if mode == 'onwire':
+        latencies.append(end - start + 1)
+      else:
+        latencies.append(end - create + 1)
 
     # return times and latencies
     return times, latencies

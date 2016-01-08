@@ -37,17 +37,13 @@
 
 RelaySender::RelaySender(des::Simulator* _sim, const std::string& _name,
                          const des::Model* _parent, u32 _id, Network* _network,
-                         std::atomic<s64>* _remaining, u32 _minMessageSize,
-                         u32 _maxMessageSize, u32 _receiverMinId,
-                         u32 _receiverMaxId, u32 _relayMinId, u32 _relayMaxId,
-                         u32 _maxOutstanding)
-    : Sender(_sim, _name, _parent, _id, _network, _remaining, _minMessageSize,
+                         u32 _minMessageSize, u32 _maxMessageSize,
+                         u32 _receiverMinId, u32 _receiverMaxId,
+                         u32 _relayMinId, u32 _relayMaxId, u32 _maxOutstanding)
+    : Sender(_sim, _name, _parent, _id, _network, _minMessageSize,
              _maxMessageSize, _receiverMinId, _receiverMaxId),
       relayMinId_(_relayMinId), relayMaxId_(_relayMaxId), relayReqId_(0),
-      maxOutstanding_(_maxOutstanding), outstanding_(0), tryPending_(false) {
-  // create the first event
-  trySendMessage();
-}
+      maxOutstanding_(_maxOutstanding), credits_(_maxOutstanding) {}
 
 RelaySender::~RelaySender() {}
 
@@ -57,53 +53,42 @@ void RelaySender::recv(Message* _msg) {
   delete _msg;
 
   // decrement the outstanding count for this recv
-  assert(outstanding_ > 0);
-  outstanding_--;
+  assert(credits_ <= maxOutstanding_);
+  credits_++;
 
-  // if there isn't a pending try attempt, try now
-  if (tryPending_ == false) {
-    trySendMessage();
-  }
+  // process the send queue
+  processQueue();
 }
 
-void RelaySender::trySendMessage() {
-  if (outstanding_ < maxOutstanding_) {
-    Message* msg = getNextMessage();
-    if (msg) {
-      // reformat the message to be a relay request
-      Relay::Request* req = new Relay::Request();
-      req->reqId = relayReqId_;
-      req->msgDst = msg->dst;
-      relayReqId_++;
-      msg->dst = prng.nextU64(relayMinId_, relayMaxId_);
-      msg->size++;  // increase for request header
-      msg->type = Message::RELAY_REQUEST;
-      msg->data = req;
+void RelaySender::sendMessage(Message* _msg) {
+  // reformat the message to be a relay request
+  Relay::Request* req = new Relay::Request();
+  req->reqId = relayReqId_;
+  req->msgDst = _msg->dst;
+  relayReqId_++;
+  _msg->dst = prng.nextU64(relayMinId_, relayMaxId_);
+  _msg->size++;  // increase for request header
+  _msg->type = Message::RELAY_REQUEST;
+  _msg->data = req;
 
-      // increment outstanding count
-      outstanding_++;
+  // add to queue
+  sendQueue_.push(_msg);
 
-      // send the message
-      des::Time now = simulator->time();
-      future_send(msg, now.plusEps());
-
-      // if outstanding is not maxed out, send another after current is sent
-      //  overshoot by one to make sure no overlap
-      if (outstanding_ < maxOutstanding_ + 1) {
-        des::Time nextTry = now + msg->size;
-        des::Event* event = new des::Event(
-            this, static_cast<des::EventHandler>(
-                &RelaySender::handle_trySendMessage),
-            nextTry);
-        simulator->addEvent(event);
-        tryPending_ = true;
-      }
-    }
-  }
+  // process the send queue
+  processQueue();
 }
 
-void RelaySender::handle_trySendMessage(des::Event* _event) {
-  tryPending_ = false;
-  trySendMessage();
-  delete _event;
+void RelaySender::processQueue() {
+  // send all available messages
+  while (!sendQueue_.empty() && credits_ > 0) {
+    // pop the next message
+    Message* _msg = sendQueue_.front();
+    sendQueue_.pop();
+
+    // send the message
+    send(_msg);
+
+    // decrement the credit count
+    credits_--;
+  }
 }

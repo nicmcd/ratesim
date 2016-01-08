@@ -45,3 +45,9 @@ std::string Message::toString() const {
       " trans=" << trans << " type=" << (u64)type << " data*=" << (u64)data;
   return ss.str();
 }
+
+MessageEvent::MessageEvent(des::Model* _model, des::EventHandler _handler,
+                           des::Time _time, Message* _msg)
+    : des::Event(_model, _handler, _time), msg(_msg) {}
+
+MessageEvent::~MessageEvent() {}

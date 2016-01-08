@@ -32,6 +32,14 @@ bld/
 bin/
 inc/
 
-# ratesim output logs
+# ratesim log files
 *.log
 *.log.gz
+
+# parser data files
+*.dat
+*.dat.gz
+
+# images
+*.png
+*.jpg

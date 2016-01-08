@@ -26,56 +26,30 @@ def main(args):
 
   # plot data
   bulkAggregates(ax1, raw, xlim, smoothness=args.smoothness)
-  estimatedBisectionBandwidth(ax2, raw, xlim, smoothness=args.smoothness)
-  latencyScatter(ax3, raw, xlim)
+  bandwidthOverhead(ax2, raw, xlim, smoothness=args.smoothness)
+  wireLatencyScatter(ax3, raw, xlim)
+  totalLatencyScatter(ax4, raw, xlim)
 
-  #
   fig.tight_layout()
-  plt.show()
 
-  png = 'quadplot.png'
-  print('saving {0}'.format(png))
-  fig.savefig(png)
+  if args.viewplot:
+    plt.show()
+
+  print('saving {0}'.format(args.plotfile))
+  fig.savefig(args.plotfile)
 
 
 def getXlim(raw):
   # extract latency data
-  times, _ = raw.extractLatencies()
+  times, _ = raw.extractLatencies('onwire')
   return max(times) * 1.02
 
 
-"""
-def receiverAggregate(raw):
-  rate = raw.extractRate(['Receiver_*'], False)
-
-  fig = plt.figure(figsize=(16,10))
-  ax1 = fig.add_subplot(1, 1, 1)
-
-  line = raw.plotRate(ax1, rate)
-
-  #ax1.legend()
-
-  plt.show()
-
-
-def senderAggregate(raw):
-  rate = raw.extractRate(['Sender_*'], True)
-
-  fig = plt.figure(figsize=(16,10))
-  ax1 = fig.add_subplot(1, 1, 1)
-
-  line = raw.plotRate(ax1, rate)
-
-  #ax1.legend()
-
-  plt.show()
-"""
-
 def bulkAggregates(ax, raw, xlim, smoothness):
   # extract the data
-  ss = raw.extractRate(['Sender_*'], True)
-  sr = raw.extractRate(['Sender_*'], False)
-  rr = raw.extractRate(['Receiver_*'], False)
+  ss = raw.extractRate(['Sender_*'], 'send')
+  sr = raw.extractRate(['Sender_*'], 'recv')
+  rr = raw.extractRate(['Receiver_*'], 'recv')
 
   # apply smoothing
   ssb = smooth(ss, smoothness)
@@ -88,41 +62,42 @@ def bulkAggregates(ax, raw, xlim, smoothness):
   srl = ax.plot(time, srb, 'g', label='Senders recv')
   rrl = ax.plot(time, rrb, 'b', label='Receivers recv')
 
+  # plot the rate limit
+  limit = [raw.settings['rate_limit']] * len(time)
+  ll = ax.plot(time, limit, 'y--', linewidth=4)
+
   # format axis
   ax.set_xlabel('Time (cycles)')
-  ax.set_ylabel('Rate (flits/cycle)')
+  ax.set_ylabel('Bandwidth (flits/cycle)')
   ax.set_xlim(0, xlim)
   ax.set_ylim([0, max(rrb) * 1.50])
   ax.legend()
-  ax.set_title('Bulk Rates')
+  ax.set_title('Bandwidths by Group')
 
 
-def estimatedBisectionBandwidth(ax, raw, xlim, smoothness):
+def bandwidthOverhead(ax, raw, xlim, smoothness):
   # extract the data
-  rate = raw.extractRate(['.*'], False)
-
-  # estimate the amount of traffic that goes over the bisection
-  bisection_fraction = 0.5
-  for idx in range(len(rate)):
-    rate[idx] /= bisection_fraction
+  total_rate = raw.extractRate(['.*'], 'recv')
+  receiver_rate = raw.extractRate(['Receiver_.*'], 'recv')
+  rate = numpy.subtract(total_rate, receiver_rate)
 
   # apply smoothing
   rate = smooth(rate, smoothness)
 
   # plot the data
   time = numpy.arange(raw.stats['Total simulation ticks'] + 1)
-  line = ax.plot(time, rate, 'r', label='Bisection Bandwidth')
+  line = ax.plot(time, rate, 'm')
 
   # format axis
   ax.set_xlabel('Time (cycles)')
-  ax.set_ylabel('Bisection Bandwidth (flits/cycle)')
-  ax.set_title('Bisection Bandwidth')
+  ax.set_ylabel('Bandwidth (flits/cycle)')
+  ax.set_title('Bandwidth Overhead')
   ax.set_xlim(0, xlim)
 
 
-def latencyScatter(ax, raw, xlim):
+def wireLatencyScatter(ax, raw, xlim):
   # extract latency data
-  times, latencies = raw.extractLatencies()
+  times, latencies = raw.extractLatencies('onwire')
 
   # scatter plot the data
   sc = ax.scatter(times, latencies, color='b', s=2)
@@ -130,8 +105,24 @@ def latencyScatter(ax, raw, xlim):
   # format axis
   ax.set_xlabel('Time (cycles)')
   ax.set_ylabel('Latency (cycles)')
-  ax.set_title('Transaction Latencies')
+  ax.set_title('NIC-to-NIC Latency')
   ax.set_xlim(0, xlim)
+  ax.set_ylim(0, max(latencies) * 1.05)
+
+
+def totalLatencyScatter(ax, raw, xlim):
+  # extract latency data
+  times, latencies = raw.extractLatencies('total')
+
+  # scatter plot the data
+  sc = ax.scatter(times, latencies, color='b', s=2)
+
+  # format axis
+  ax.set_xlabel('Time (cycles)')
+  ax.set_ylabel('Latency (cycles)')
+  ax.set_title('End-to-End Latency')
+  ax.set_xlim(0, xlim)
+  ax.set_ylim(0, max(latencies) * 1.05)
 
 
 def smooth(data, radius):
@@ -174,4 +165,8 @@ if __name__ == '__main__':
                   help='save raw data to file')
   ap.add_argument('-s', '--smoothness', type=int, default=0,
                   help='smoothing factor applied to all data')
+  ap.add_argument('-p', '--plotfile', default='plot.png',
+                  help='filename of output plot file')
+  ap.add_argument('-v', '--viewplot', action='store_true',
+                  help='show plot GUI')
   main(ap.parse_args())

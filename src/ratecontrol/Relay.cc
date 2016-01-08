@@ -65,10 +65,11 @@ void Relay::recv(Message* _msg) {
   delete req;
 
   // send both messages
-  future_send(respMsg, nextTime_);
-  future_send(_msg, nextTime_);
+  send(respMsg, nextTime_);
+  send(_msg, nextTime_.plusEps());
 
   // compute the next time based on the token bucket algorithm
+  //  only consider the size of the downstream messages, not the relay credits
   u64 cycles = cyclesToSend(_msg->size, rate_);
   nextTime_ = nextTime_ + cycles;
 }
