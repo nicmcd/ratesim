@@ -30,7 +30,11 @@
  */
 #include "ratecontrol/SenderControl.h"
 
+#include <strings/Strings.h>
+
 #include <cassert>
+
+#include <unordered_set>
 
 SenderControl::SenderControl(des::Simulator* _sim, const std::string& _name,
                              const des::Model* _parent,
@@ -40,47 +44,64 @@ SenderControl::SenderControl(des::Simulator* _sim, const std::string& _name,
   // check settings form
   assert(_settings.isArray());
 
-  // save values during processing to verify after complete
-  des::Tick firstTick(des::TICK_INV);
-  f64 lastRate = F64_POS_INF;
-
   // process all entries in settings
-  //  expecting [des::Tick, f64] pairs
+  //  expecting [des::Tick, std::string] pairs
+  std::unordered_set<des::Tick> usedTicks;
   for (auto rateChange : _settings) {
     // pull out the values
     des::Tick tick(rateChange[0].asUInt64());
     des::Time time(tick);
-    f64 aggRate = rateChange[1].asDouble();
-    f64 indRate = aggRate / senders_->size();
+    std::string control = rateChange[1].asString();
 
-    // check the values
-    assert(indRate >= 0.0 && indRate <= 1.0);
+    // check that the tick hasn't already been used
+    assert(usedTicks.count(tick) == 0);
+    usedTicks.insert(tick);
 
     // add an event for this time
-    simulator->addEvent(new des::ItemEvent<f64>(
+    simulator->addEvent(new des::ItemEvent<std::string>(
         this, static_cast<des::EventHandler>(&SenderControl::handle_rateChange),
-        time, indRate));
-
-    // set the first time and last value
-    if (firstTick == des::TICK_INV) {
-      firstTick = tick;
-    }
-    lastRate = indRate;
+        time, control));
   }
-
-  // verify setup is good
-  assert(firstTick == 0);
-  assert(lastRate == 0.0);
 }
 
 SenderControl::~SenderControl() {}
 
 void SenderControl::handle_rateChange(des::Event* _event) {
-  des::ItemEvent<f64>* evt = reinterpret_cast<des::ItemEvent<f64>*>(_event);
-  f64 rate = evt->item;
-  dlogf("injectionrate=%f", rate);
-  for (u64 idx = 0; idx < senders_->size(); idx++) {
-    senders_->at(idx)->setInjectionRate(rate);
+  des::ItemEvent<std::string>* evt =
+      reinterpret_cast<des::ItemEvent<std::string>*>(_event);
+  const std::string& control = evt->item;
+  printf("\ncontrol = %s\n", control.c_str());
+  std::unordered_set<u32> usedSenders;
+  std::vector<std::string> groups = Strings::split(control, ':');
+  for (auto& group : groups) {
+    printf("group = %s\n", group.c_str());
+    std::vector<std::string> setting = Strings::split(group, '=');
+    assert(setting.size() == 2);
+    const std::string& senderRange = setting.at(0);
+    printf("senderRange = %s\n", senderRange.c_str());
+    f64 rate = std::stod(setting.at(1));
+    assert(rate >= 0.0 && rate <= 1.0);
+    u32 start;
+    u32 stop;
+    if (senderRange == "*") {
+      // full range
+      start = 1;
+      stop = senders_->size();
+    } else {
+      // a single specifier (i.e. "4") or a range (i.e. "4-89")
+      std::vector<std::string> startStop = Strings::split(senderRange, '-');
+      assert(startStop.size() == 1 || startStop.size() == 2);
+      start = std::stoul(startStop.at(0));
+      stop = startStop.size() == 2 ? std::stoul(startStop.at(1)) : start;
+      assert(stop >= start);
+    }
+    // set the injection rates
+    printf("range = %u -> %u; rate = %f\n", start, stop, rate);
+    for (u32 idx = start - 1; idx < stop; idx++) {
+      assert(usedSenders.count(idx) == 0);
+      usedSenders.insert(idx);
+      senders_->at(idx)->setInjectionRate(rate);
+    }
   }
   delete _event;
 }

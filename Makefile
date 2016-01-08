@@ -10,12 +10,14 @@ HEADER_DIRS   := \
 	../libprim/inc \
 	../libdes/inc \
 	../librng/inc \
-	../libsettings/inc
+	../libsettings/inc \
+	../libstrings/inc
 STATIC_LIBS   := \
 	../libprim/bld/libprim.a \
 	../libdes/bld/libdes.a \
 	../librng/bld/librng.a \
-	../libsettings/bld/libsettings.a
+	../libsettings/bld/libsettings.a \
+	../libstrings/bld/libstrings.a
 
 #--------------------- Cpp Lint -----------------------------------------------#
 LINT          := $(HOME)/.makeccpp/cpplint/cpplint.py
