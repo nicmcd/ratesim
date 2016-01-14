@@ -2,9 +2,15 @@
 
 import argparse
 import json
+import os
 import rateparse
-import matplotlib.pyplot as plt
 import numpy
+
+if 'DISPLAY' not in os.environ or os.environ['DISPLAY'] == '':
+  import matplotlib
+  matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 
 def main(args):
   # get the RawData object
