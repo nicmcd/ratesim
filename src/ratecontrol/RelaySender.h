@@ -31,6 +31,7 @@
 #ifndef RATECONTROL_RELAYSENDER_H_
 #define RATECONTROL_RELAYSENDER_H_
 
+#include <jsoncpp/json/json.h>
 #include <prim/prim.h>
 
 #include <queue>
@@ -47,9 +48,9 @@ class RelaySender : public Sender {
   RelaySender(des::Simulator* _sim, const std::string& _name,
               const des::Model* _parent, u32 _id, Network* _network,
               u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
-              u32 _receiverMaxId, u32 _relayMinId, u32 _relayMaxId,
-              u32 _maxOutstanding);
+              u32 _receiverMaxId, Json::Value _settings);
   ~RelaySender();
+  void relayIds(u32 _relayMinId, u32 _relayMaxId);
 
   void recv(Message* _msg) override;
 
@@ -58,8 +59,9 @@ class RelaySender : public Sender {
   void processQueue();
 
  private:
-  const u32 relayMinId_;
-  const u32 relayMaxId_;
+  u32 relayMinId_;
+  u32 relayMaxId_;
+
   u64 relayReqId_;
   const u32 maxOutstanding_;
 

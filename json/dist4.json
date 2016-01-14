@@ -13,9 +13,15 @@
     [21000, "*=0.0"]
   ],
   "sender_config": {
-    "max_outstanding": 5
+    "steal_tokens": true,
+    "steal_rate": true,
+    "max_tokens": 50,
+    "rate_threshold": 20,
+    "steal_threshold": 5,
+    "max_rate_give_factor": 1.0,
+    "max_requests_outstanding": 3
   },
-  "relays": 90,
+  "relays": 0,
   "receivers": 75,
   "network_delay": 10,
   "rate_limit": 50.0,
@@ -23,6 +29,6 @@
   "max_message_size": 25,
   "threads": 1,
   "verbosity": 2,
-  "algorithm": "relay",
-  "log_file": "relay.log.gz"
+  "algorithm": "dist",
+  "log_file": "dist4.log.gz"
 }

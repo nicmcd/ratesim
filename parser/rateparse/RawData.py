@@ -98,19 +98,12 @@ class RawData(object):
           func = line[:func_end].strip()
           line = line[func_end+1:]
 
-          elems_start = line.find('|') + 1
-          line = line[elems_start:]
-          elems = {}
-          for elem in line.split():
-            sep = elem.find('=')
-            key = elem[:sep]
-            try:
-              val = int(elem[sep+1:])
-            except:
-              val = float(elem[sep+1:])
-            elems[key] = val
+          msg_start = line.find('|') + 1
+          msg = line[msg_start:]
 
           if func == 'handle_send' or func == 'handle_recv':
+            elems = self._extractKeyValuePairs(msg)
+
             # store action data
             cnode = elems['src'] if func == 'handle_send' else elems['dst']
 
@@ -123,21 +116,28 @@ class RawData(object):
                                          elems['trans'], elems['type']))
 
             # do transaction handling
-            if func == 'handle_send':
-              assert elems['trans'] in transactions
-              transactions[elems['trans']]['msgs'] += 1
-              transactions[elems['trans']]['start'] = \
-                  min(transactions[elems['trans']]['start'], tick)
-            else:
-              assert func == 'handle_recv'
-              transactions[elems['trans']]['end'] = \
-                  max(transactions[elems['trans']]['end'], tick)
+            if elems['trans'] != 0:
+              if func == 'handle_send':
+                # print('{0} handle_send'.format(elems['trans']))
+                assert elems['trans'] in transactions
+                transactions[elems['trans']]['msgs'] += 1
+                transactions[elems['trans']]['start'] = \
+                    min(transactions[elems['trans']]['start'], tick)
+              else:
+                # print('{0} handle_recv'.format(elems['trans']))
+                assert func == 'handle_recv'
+                transactions[elems['trans']]['end'] = \
+                    max(transactions[elems['trans']]['end'], tick)
 
           elif func == 'handle_sendMessage':
-            # do transaction handling
-            assert elems['trans'] not in transactions
-            transactions[elems['trans']] = {'msgs': 0, 'create': tick,
-                                            'start': float('inf'), 'end': 0}
+            elems = self._extractKeyValuePairs(msg)
+            if elems['trans'] != 0:
+              # do transaction handling
+              # print('{0} handle_sendMessage'.format(elems['trans']))
+              assert elems['trans'] not in transactions
+              transactions[elems['trans']] = {'msgs': 0, 'create': tick,
+                                              'start': float('inf'), 'end': 0,
+                                              'size': elems['size']}
 
           else:
             pass  # some other function
@@ -162,6 +162,31 @@ class RawData(object):
 
     print('done parsing')
     return (settings, actions, transactions, stats)
+
+
+  def _extractKeyValuePairs(self, msg):
+    """
+    This extracts key value pairs from a string. Ex:
+      a=234 hi=456 bye=9.08
+
+    Args:
+      msg (string) : the message to be parsed (one line)
+
+    Returns:
+      dict : key/value pairs (values are int, float, string)
+    """
+
+    elems = {}
+    for elem in msg.split():
+      sep = elem.find('=')
+      key = elem[:sep]
+      try:
+        val = int(elem[sep+1:])
+      except:
+        val = float(elem[sep+1:])
+      elems[key] = val
+    return elems
+
 
   def write(self, filename):
     """
@@ -249,11 +274,12 @@ class RawData(object):
       create = self.transactions[trans]['create']
       start = self.transactions[trans]['start']
       end = self.transactions[trans]['end']
+      size = self.transactions[trans]['size']
       times.append(end)
       if mode == 'onwire':
-        latencies.append(end - start + 1)
+        latencies.append(end - start + 1 - size)
       else:
-        latencies.append(end - create + 1)
+        latencies.append(end - create + 1 - size)
 
     # return times and latencies
     return times, latencies

@@ -35,8 +35,8 @@ def main(args):
   if args.viewplot:
     plt.show()
 
-  print('saving {0}'.format(args.plotfile))
-  fig.savefig(args.plotfile)
+  if args.plotfile:
+    fig.savefig(args.plotfile)
 
 
 def getXlim(raw):
@@ -70,8 +70,9 @@ def bulkAggregates(ax, raw, xlim, smoothness):
   ax.set_xlabel('Time (cycles)')
   ax.set_ylabel('Bandwidth (flits/cycle)')
   ax.set_xlim(0, xlim)
-  ax.set_ylim([0, max(rrb) * 1.50])
+  ax.set_ylim([0, max(raw.settings['rate_limit'] * 1.1, max(rrb) * 1.50)])
   ax.legend()
+  ax.grid(True)
   ax.set_title('Bandwidths by Group')
 
 
@@ -93,6 +94,7 @@ def bandwidthOverhead(ax, raw, xlim, smoothness):
   ax.set_ylabel('Bandwidth (flits/cycle)')
   ax.set_title('Bandwidth Overhead')
   ax.set_xlim(0, xlim)
+  ax.grid(True)
 
 
 def wireLatencyScatter(ax, raw, xlim):
@@ -108,6 +110,7 @@ def wireLatencyScatter(ax, raw, xlim):
   ax.set_title('NIC-to-NIC Latency')
   ax.set_xlim(0, xlim)
   ax.set_ylim(0, max(latencies) * 1.05)
+  ax.grid(True)
 
 
 def totalLatencyScatter(ax, raw, xlim):
@@ -123,6 +126,7 @@ def totalLatencyScatter(ax, raw, xlim):
   ax.set_title('End-to-End Latency')
   ax.set_xlim(0, xlim)
   ax.set_ylim(0, max(latencies) * 1.05)
+  ax.grid(True)
 
 
 def smooth(data, radius):
@@ -165,7 +169,7 @@ if __name__ == '__main__':
                   help='save raw data to file')
   ap.add_argument('-s', '--smoothness', type=int, default=0,
                   help='smoothing factor applied to all data')
-  ap.add_argument('-p', '--plotfile', default='plot.png',
+  ap.add_argument('-p', '--plotfile', default=None,
                   help='filename of output plot file')
   ap.add_argument('-v', '--viewplot', action='store_true',
                   help='show plot GUI')

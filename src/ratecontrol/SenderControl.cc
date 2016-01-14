@@ -70,15 +70,12 @@ void SenderControl::handle_rateChange(des::Event* _event) {
   des::ItemEvent<std::string>* evt =
       reinterpret_cast<des::ItemEvent<std::string>*>(_event);
   const std::string& control = evt->item;
-  printf("\ncontrol = %s\n", control.c_str());
   std::unordered_set<u32> usedSenders;
   std::vector<std::string> groups = Strings::split(control, ':');
   for (auto& group : groups) {
-    printf("group = %s\n", group.c_str());
     std::vector<std::string> setting = Strings::split(group, '=');
     assert(setting.size() == 2);
     const std::string& senderRange = setting.at(0);
-    printf("senderRange = %s\n", senderRange.c_str());
     f64 rate = std::stod(setting.at(1));
     assert(rate >= 0.0 && rate <= 1.0);
     u32 start;
@@ -96,7 +93,6 @@ void SenderControl::handle_rateChange(des::Event* _event) {
       assert(stop >= start);
     }
     // set the injection rates
-    printf("range = %u -> %u; rate = %f\n", start, stop, rate);
     for (u32 idx = start - 1; idx < stop; idx++) {
       assert(usedSenders.count(idx) == 0);
       usedSenders.insert(idx);

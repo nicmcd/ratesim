@@ -44,6 +44,7 @@
 #include <vector>
 
 #include "ratecontrol/BasicSender.h"
+#include "ratecontrol/DistSender.h"
 #include "ratecontrol/Network.h"
 #include "ratecontrol/Receiver.h"
 #include "ratecontrol/Relay.h"
@@ -64,7 +65,6 @@ s32 main(s32 _argc, char** _argv) {
   f64 rateLimit = settings["rate_limit"].asDouble();
   u32 minMessageSize = settings["min_message_size"].asUInt();
   u32 maxMessageSize = settings["max_message_size"].asUInt();
-  u32 maxRelayOutstanding = settings["max_relay_outstanding"].asUInt();
   u32 numThreads = settings["threads"].asUInt();
   u32 verbosity = settings["verbosity"].asUInt();
   std::string algorithm = settings["algorithm"].asString();
@@ -90,11 +90,6 @@ s32 main(s32 _argc, char** _argv) {
   if (maxMessageSize < minMessageSize) {
     fprintf(stderr, "maximum message size must be greater than or equal to"
             " the minimum message size\n");
-    exit(-1);
-  }
-  if (maxRelayOutstanding == 0) {
-    fprintf(stderr, "maximum relay outstanding messages must be greater than "
-            "0\n");
     exit(-1);
   }
 
@@ -143,24 +138,41 @@ s32 main(s32 _argc, char** _argv) {
           &sim, createName("Sender", s, numSenders), nullptr,
           nodeId++, &network, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
-          receivers.at(numReceivers - 1)->id);
-
+          receivers.at(numReceivers - 1)->id,
+          settings["sender_config"]);
     } else if (algorithm == "relay") {
       senders.at(s) = new RelaySender(
           &sim, createName("Sender", s, numSenders), nullptr,
           nodeId++, &network, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
-          receivers.at(numReceivers - 1)->id, relays.at(0)->id,
-          relays.at(numRelays - 1)->id, maxRelayOutstanding);
-
+          receivers.at(numReceivers - 1)->id,
+          settings["sender_config"]);
+    } else if (algorithm == "dist") {
+      senders.at(s) = new DistSender(
+          &sim, createName("Sender", s, numSenders), nullptr,
+          nodeId++, &network, minMessageSize,
+          maxMessageSize, receivers.at(0)->id,
+          receivers.at(numReceivers - 1)->id,
+          rateLimit, settings["sender_config"]);
     } else {
       fprintf(stderr, "invalid algorithm: %s\n", algorithm.c_str());
       exit(-1);
     }
-
     senders.at(s)->debug = verbosity > 1;
   }
 
+  // inform senders of any IDs they need
+  for (u32 s = 0; s < numSenders; s++) {
+    if (algorithm == "relay") {
+      reinterpret_cast<RelaySender*>(senders.at(s))->relayIds(
+          relays.at(0)->id, relays.at(numRelays - 1)->id);
+    } else if (algorithm == "dist") {
+      reinterpret_cast<DistSender*>(senders.at(s))->distIds(
+          senders.at(0)->id, senders.at(numSenders - 1)->id);
+    }
+  }
+
+  // create a sender control unit for controlling desired injection rate
   SenderControl senderControl(&sim, "SenderControl", nullptr, &senders,
                               settings["sender_control"]);
   senderControl.debug = verbosity > 0;

@@ -33,7 +33,7 @@
 
 #include <des/des.h>
 #include <prim/prim.h>
-#include <rng/Random.h>
+#include <rnd/Random.h>
 
 #include <string>
 
@@ -76,7 +76,7 @@ class Node : public des::Model {
    */
   u64 cyclesToSend(u32 _size, f64 _rate);
 
-  rng::Random prng;
+  rnd::Random prng;
 
  private:
   void handle_recv(des::Event* _event);

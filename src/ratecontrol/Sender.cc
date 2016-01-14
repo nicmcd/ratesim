@@ -76,13 +76,13 @@ void Sender::handle_sendMessage(des::Event* _event) {
   u32 dst = prng.nextU64(receiverMinId_, receiverMaxId_);
   u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
   u64 trans = ((u64)id << 32) | ((u64)messageCount_);
-  dlogf("trans=%lu", trans);
+  dlogf("trans=%lu size=%u", trans, size);
   messageCount_++;
   Message* msg = new Message(id, dst, size, trans, Message::PLAIN, nullptr);
   sendMessage(msg);
 
   // create an event to send the next message
-  if (injectionRate_ > 0.0) {
+  if (injectionRate_ > 0.0) {  // && messageCount_ < 1) {
     simulator->addEvent(new des::Event(
         this, static_cast<des::EventHandler>(&Sender::handle_sendMessage),
         simulator->time() + cyclesToSend(size, injectionRate_)));

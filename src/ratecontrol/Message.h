@@ -51,6 +51,8 @@ class Message {
   static const u8 PLAIN = 0;
   static const u8 RELAY_REQUEST = 1;
   static const u8 RELAY_RESPONSE = 2;
+  static const u8 DIST_REQUEST = 3;
+  static const u8 DIST_RESPONSE = 4;
 
   std::string toString() const;
 };

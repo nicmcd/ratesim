@@ -9,13 +9,13 @@ MAIN_FILE     := src/main.cc
 HEADER_DIRS   := \
 	../libprim/inc \
 	../libdes/inc \
-	../librng/inc \
+	../librnd/inc \
 	../libsettings/inc \
 	../libstrings/inc
 STATIC_LIBS   := \
 	../libprim/bld/libprim.a \
 	../libdes/bld/libdes.a \
-	../librng/bld/librng.a \
+	../librnd/bld/librnd.a \
 	../libsettings/bld/libsettings.a \
 	../libstrings/bld/libstrings.a
 

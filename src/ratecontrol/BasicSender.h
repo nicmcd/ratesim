@@ -31,6 +31,7 @@
 #ifndef RATECONTROL_BASICSENDER_H_
 #define RATECONTROL_BASICSENDER_H_
 
+#include <jsoncpp/json/json.h>
 #include <prim/prim.h>
 
 #include <string>
@@ -45,7 +46,7 @@ class BasicSender : public Sender {
   BasicSender(des::Simulator* _sim, const std::string& _name,
               const des::Model* _parent, u32 _id, Network* _network,
               u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
-              u32 _receiverMaxId);
+              u32 _receiverMaxId, Json::Value _settings);
   ~BasicSender();
 
   void recv(Message* _msg) override;
