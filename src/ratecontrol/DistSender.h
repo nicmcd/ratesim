@@ -96,6 +96,9 @@ class DistSender : public Sender {
   // this adds the specified rate value to this sender's rate
   void addRate(f64 _rate);
 
+  // DEBUG - print some stats
+  void showStats(des::Event* _event);
+
   const f64 distRate_;
   u32 distMinId_;
   u32 distMaxId_;

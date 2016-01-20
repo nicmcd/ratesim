@@ -146,6 +146,7 @@ class RawData(object):
 
       # gather stats
       elif mode == 'stats':
+        assert line[0] != '[', 'You probably added a newline to a dlogf'
         split = line.find(':')
         if split > 0:
           stat_name = line[0:split]

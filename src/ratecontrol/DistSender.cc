@@ -73,6 +73,14 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
   assert(rateThreshold_ <= maxTokens_);
   assert(maxRateGiveFactor_ > 0.0 && maxRateGiveFactor_ <= 1.0);
   assert(maxRequestsOutstanding_ > 0);
+
+  // add debug stats print
+  simulator->addEvent(new des::Event(
+      this, static_cast<des::EventHandler>(&DistSender::showStats),
+      des::Time(9999)));
+  simulator->addEvent(new des::Event(
+        this, static_cast<des::EventHandler>(&DistSender::showStats),
+      des::Time(19876)));
 }
 
 DistSender::~DistSender() {}
@@ -210,12 +218,12 @@ void DistSender::processQueue() {
     }
 
     // this figures out how many ticks we'd have to wait at the current rate
-    f64 ticksAway = (_msg->size - tokens_) / rate_;
+    f64 tokensShort = (_msg->size - tokens_) / rate_;
 
     // can't send the message, try to send a steal request
     if ((stealTokens_ || (stealRate_ && rate_ < 1.0)) &&  // stealing enabled
         (requestsOutstanding_ == 0) &&  // no outstanding requests
-        (ticksAway > stealThreshold_)) {  // steal threshold triggered
+        (tokensShort > stealThreshold_)) {  // steal threshold triggered
       // create a random set with destination peers
       rnd::Queue<u32> peers(&prng);
       peers.add(distMinId_, distMaxId_);
@@ -229,7 +237,7 @@ void DistSender::processQueue() {
         req->reqId = 0x1000000000000000lu | ((u64)id << 32) | distReqId_;
 
         // request enough tokens for the whole queue
-        req->tokens = stealTokens_ ? queueSize_ : 0;
+        req->tokens = stealTokens_ ? queueSize_ / maxRequestsOutstanding_ : 0;
 
         // divide the remaining rate by number of requests incase all the
         //  responders say yes. we can only have a total of 1.0 rate
@@ -256,7 +264,7 @@ void DistSender::processQueue() {
     if ((!waiting_) &&  // not already waiting
         (requestsOutstanding_ == 0) &&  // no outstanding requests
         ((!stealTokens_ && !stealRate_) ||  // stealing disabled
-         (ticksAway <= stealThreshold_))) {  // steal threshold not triggered
+         (tokensShort <= stealThreshold_))) {  // steal threshold not triggered
       dlogf("starting wait period");
       // the message can't be sent. for one of various reasons we've decided to
       // wait for credit accumulation instead of stealing
@@ -298,7 +306,7 @@ f64 DistSender::removeRate(f64 _factor, f64 _max) {
   assert(_factor >= 0.0 && _factor <= 1.0);
   f64 take = std::min(_factor * rate_, _max);
   rate_ -= take;
-  assert(rate_ >= 0.0 && rate_ <= 1.0);  // consider removing this, not needed?!
+  assert(rate_ >= 0.0 && rate_ <= 1.0);
   return take;
 }
 
@@ -308,4 +316,9 @@ void DistSender::addRate(f64 _rate) {
   assert(rate_ >= 0.0);
   assert(rate_ <= 1.01);
   rate_ = std::min(1.0, rate_);
+}
+
+void DistSender::showStats(des::Event* _event) {
+  dlogf("tokens=%f rate=%f", getTokens(), rate_);
+  delete _event;
 }
