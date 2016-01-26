@@ -58,15 +58,16 @@ class Sender : public Node {
    */
   virtual void sendMessage(Message* _msg) = 0;
 
+  const u32 minMessageSize;
+  const u32 maxMessageSize;
+
  private:
   void handle_injectionRateEvent(des::Event* _event);
   void handle_sendMessage(des::Event* _event);
 
   f64 injectionRate_;
-  u32 minMessageSize_;
-  u32 maxMessageSize_;
-  u32 receiverMinId_;
-  u32 receiverMaxId_;
+  const u32 receiverMinId_;
+  const u32 receiverMaxId_;
   u32 messageCount_;
 };
 

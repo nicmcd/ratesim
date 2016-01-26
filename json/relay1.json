@@ -15,7 +15,7 @@
   "sender_config": {
     "max_outstanding": 5
   },
-  "relays": 90,
+  "relays": 50,
   "receivers": 75,
   "network_delay": 10,
   "rate_limit": 50.0,

@@ -30,8 +30,9 @@ def main(args):
       if re.search(args.names, io['name']):
         sim_cmd = 'bin/ratesim {0} log_file=string={1}'.format(
           io['json'], io['log'])
-        for override in args.override:
-          sim_cmd += ' {0}'.format(override)
+        if args.override:
+          for override in args.override:
+            sim_cmd += ' {0}'.format(override)
         sim = taskrun.ProcessTask(
           tm, 'sim_{0}'.format(io['name']), sim_cmd)
         plot = taskrun.ProcessTask(

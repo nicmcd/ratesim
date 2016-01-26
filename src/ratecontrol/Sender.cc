@@ -39,10 +39,10 @@ Sender::Sender(des::Simulator* _sim, const std::string& _name,
                const des::Model* _parent, u32 _id, Network* _network,
                u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
                u32 _receiverMaxId)
-    : Node(_sim, _name, _parent, _id, _network), injectionRate_(0.0),
-      minMessageSize_(_minMessageSize), maxMessageSize_(_maxMessageSize),
-      receiverMinId_(_receiverMinId), receiverMaxId_(_receiverMaxId),
-      messageCount_(0) {}
+    : Node(_sim, _name, _parent, _id, _network),
+      minMessageSize(_minMessageSize), maxMessageSize(_maxMessageSize),
+      injectionRate_(0.0), receiverMinId_(_receiverMinId),
+      receiverMaxId_(_receiverMaxId), messageCount_(0) {}
 
 Sender::~Sender() {}
 
@@ -74,7 +74,7 @@ void Sender::handle_injectionRateEvent(des::Event* _event) {
 void Sender::handle_sendMessage(des::Event* _event) {
   // create and send a message
   u32 dst = prng.nextU64(receiverMinId_, receiverMaxId_);
-  u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
+  u32 size = prng.nextU64(minMessageSize, maxMessageSize);
   u64 trans = ((u64)id << 32) | ((u64)messageCount_);
   dlogf("trans=%lu size=%u", trans, size);
   messageCount_++;
@@ -97,7 +97,7 @@ Message* Sender::getNextMessage() {
   s64 prev = remaining_->fetch_sub(1);
   if (prev > 0) {
     u32 dst = prng.nextU64(receiverMinId_, receiverMaxId_);
-    u32 size = prng.nextU64(minMessageSize_, maxMessageSize_);
+    u32 size = prng.nextU64(minMessageSize, maxMessageSize);
     Message* msg = new Message(id, dst, size, (u64)prev, Message::PLAIN,
                                nullptr);
     return msg;

@@ -3,13 +3,14 @@
 import argparse
 import json
 import os
-import rateparse
-import numpy
-
 if 'DISPLAY' not in os.environ or os.environ['DISPLAY'] == '':
   import matplotlib
   matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+import rateparse
+import numpy
+
 
 
 def main(args):
@@ -21,11 +22,13 @@ def main(args):
     raw.write(args.output)
 
   # create a quad-plot
-  fig = plt.figure(figsize=(16,10))
-  ax1 = fig.add_subplot(2, 2, 1)
-  ax2 = fig.add_subplot(2, 2, 2)
-  ax3 = fig.add_subplot(2, 2, 3)
-  ax4 = fig.add_subplot(2, 2, 4)
+  fig = plt.figure(figsize=(16, 9))
+  ax1 = fig.add_subplot(2, 3, 1)
+  ax2 = fig.add_subplot(2, 3, 2)
+  ax3 = fig.add_subplot(2, 3, 3)
+  ax4 = fig.add_subplot(2, 3, 4)
+  ax5 = fig.add_subplot(2, 3, 5)
+  ax6 = fig.add_subplot(2, 3, 6)
 
   # get the xlim to be used by all time-based plots
   xlim = getXlim(raw)
@@ -35,6 +38,8 @@ def main(args):
   bandwidthOverhead(ax2, raw, xlim, smoothness=args.smoothness)
   wireLatencyScatter(ax3, raw, xlim)
   totalLatencyScatter(ax4, raw, xlim)
+  latencyPercentiles(ax5, raw, 2000, 10000)
+  latencyPercentiles(ax6, raw, 12000, 20000)
 
   fig.tight_layout()
 
@@ -74,7 +79,7 @@ def bulkAggregates(ax, raw, xlim, smoothness):
 
   # format axis
   ax.set_xlabel('Time (cycles)')
-  ax.set_ylabel('Bandwidth (flits/cycle)')
+  ax.set_ylabel('Bandwidth (phits/cycle)')
   ax.set_xlim(0, xlim)
   ax.set_ylim([0, max(raw.settings['rate_limit'] * 1.1, max(rrb) * 1.50)])
   ax.legend()
@@ -97,7 +102,7 @@ def bandwidthOverhead(ax, raw, xlim, smoothness):
 
   # format axis
   ax.set_xlabel('Time (cycles)')
-  ax.set_ylabel('Bandwidth (flits/cycle)')
+  ax.set_ylabel('Bandwidth (phits/cycle)')
   ax.set_title('Bandwidth Overhead')
   ax.set_xlim(0, xlim)
   ax.grid(True)
@@ -132,6 +137,25 @@ def totalLatencyScatter(ax, raw, xlim):
   ax.set_title('End-to-End Latency')
   ax.set_xlim(0, xlim)
   ax.set_ylim(0, max(latencies) * 1.05)
+  ax.grid(True)
+
+
+def latencyPercentiles(ax, raw, xmin, xmax):
+  # extract latency data
+  _, latencies = raw.extractLatencies('total', bounds=[xmin, xmax])
+
+  # scatter plot
+  cdfx = numpy.sort(latencies)
+  cdfy = numpy.linspace(1 / len(latencies), 1.0, len(latencies))
+  ax.scatter(cdfx, cdfy, color='b', s=2)
+
+  # format axis
+  ax.set_xlabel('Latency (cycles)')
+  if cdfx[0] == cdfx[-1]:
+    ax.set_xlim([cdfx[0] - 3, cdfx[0] + 3])
+  ax.set_ylabel('Percentile')
+  ax.set_title('Log CDF ({0}-{1})'.format(xmin, xmax))
+  ax.set_yscale('close_to_one', nines=5)
   ax.grid(True)
 
 

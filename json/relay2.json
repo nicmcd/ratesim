@@ -1,0 +1,28 @@
+{
+  "senders": 100,
+  "sender_control": [
+    [0, "*=0.0"],
+    [100, "*=0.1"],
+    [500, "*=0.4"],
+    [2000, "1-50=0.8:51-100=0.0"],
+    [4000, "1-50=0.0:51-100=0.8"],
+    [6000, "1-50=0.8:51-100=0.0"],
+    [8000, "1-50=0.0:51-100=0.8"],
+    [10000, "*=0.4"],
+    [20000, "*=0.1"],
+    [21000, "*=0.0"]
+  ],
+  "sender_config": {
+    "max_outstanding": 5
+  },
+  "relays": 100,
+  "receivers": 75,
+  "network_delay": 10,
+  "rate_limit": 50.0,
+  "min_message_size": 5,
+  "max_message_size": 25,
+  "threads": 1,
+  "verbosity": 2,
+  "algorithm": "relay",
+  "log_file": "relay.log.gz"
+}

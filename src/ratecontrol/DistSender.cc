@@ -69,7 +69,7 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
   assert(_settings.isMember("max_requests_outstanding"));
 
   // verify const settings values
-  assert(maxTokens_ > 0);
+  assert(maxTokens_ >= minMessageSize);
   assert(rateThreshold_ <= maxTokens_);
   assert(maxRateGiveFactor_ > 0.0 && maxRateGiveFactor_ <= 1.0);
   assert(maxRequestsOutstanding_ > 0);

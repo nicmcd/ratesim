@@ -264,8 +264,20 @@ class RawData(object):
 
     return rate
 
-  def extractLatencies(self, mode):
+  def extractLatencies(self, mode, bounds=None):
+    """
+    This extracts the latencies of the transactions in the network.
+
+    Args:
+      mode (string) : must be 'onwire' or 'total'
+      bounds ([int, int]) : bounds to care about
+
+    Returns:
+      (times, latencies) : a pair of vectors for time and latency
+    """
     assert mode == 'onwire' or mode == 'total'
+    if bounds:
+      assert len(bounds) == 2 and bounds[0] <= bounds[1]
 
     times = []
     latencies = []
@@ -276,11 +288,13 @@ class RawData(object):
       start = self.transactions[trans]['start']
       end = self.transactions[trans]['end']
       size = self.transactions[trans]['size']
-      times.append(end)
-      if mode == 'onwire':
-        latencies.append(end - start + 1 - size)
-      else:
-        latencies.append(end - create + 1 - size)
+      if (bounds == None or
+          end >= bounds[0] and end <= bounds[1]):
+        times.append(end)
+        if mode == 'onwire':
+          latencies.append(end - start - size)
+        else:
+          latencies.append(end - create - size)
 
     # return times and latencies
     return times, latencies
