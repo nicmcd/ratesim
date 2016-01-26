@@ -49,6 +49,7 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
       stealTokens_(_settings["steal_tokens"].asBool()),
       stealRate_(_settings["steal_rate"].asBool()),
       maxTokens_(_settings["max_tokens"].asUInt64()),
+      tokenThreshold_(_settings["token_threshold"].asUInt64()),
       rateThreshold_(_settings["rate_threshold"].asUInt64()),
       stealThreshold_(_settings["steal_threshold"].asUInt64()),
       maxRateGiveFactor_(_settings["max_rate_give_factor"].asDouble()),
@@ -63,6 +64,7 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
   assert(_settings.isMember("steal_tokens"));
   assert(_settings.isMember("steal_rate"));
   assert(_settings.isMember("max_tokens"));
+  assert(_settings.isMember("token_threshold"));
   assert(_settings.isMember("rate_threshold"));
   assert(_settings.isMember("steal_threshold"));
   assert(_settings.isMember("max_rate_give_factor"));
@@ -70,6 +72,7 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
 
   // verify const settings values
   assert(maxTokens_ >= minMessageSize);
+  assert(tokenThreshold_ < maxTokens_);
   assert(rateThreshold_ <= maxTokens_);
   assert(maxRateGiveFactor_ > 0.0 && maxRateGiveFactor_ <= 1.0);
   assert(maxRequestsOutstanding_ > 0);
@@ -128,15 +131,23 @@ void DistSender::recvRequest(Message* _msg) {
   // request id
   res->reqId = req->reqId;
 
-  // give tokens as requested and available
+  // make sure we don't give anything if we are stealing or waiting
   u32 tokens = getTokens();
   if (requestsOutstanding_ > 0 || waiting_) {
-    tokens = 0;  // none to give others if we are stealing or waiting
+    tokens = 0;
   }
-  res->tokens = std::min(tokens, req->tokens);
+
+  // give tokens as requested and available above token threshold
+  u32 giveTokens = 0;
+  if (tokens >= tokenThreshold_) {
+    giveTokens = tokens - tokenThreshold_;
+  }
+
+  // remove token being given away
+  res->tokens = std::min(std::max(0, giveTokens), req->tokens);
   removeTokens(res->tokens);
 
-  // give rate as requested and available
+  // give rate as requested and available above rate threshold
   if ((req->rate > 0.0) && (tokens >= rateThreshold_)) {
     // determine the factor of giving
     f64 giveFactor = ((f64)(tokens - rateThreshold_) /

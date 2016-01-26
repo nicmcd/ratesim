@@ -16,6 +16,7 @@
     "steal_tokens": true,
     "steal_rate": true,
     "max_tokens": 50,
+    "token_threshold": 10,
     "rate_threshold": 20,
     "steal_threshold": 5,
     "max_rate_give_factor": 1.0,
