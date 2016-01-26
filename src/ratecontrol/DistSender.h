@@ -56,9 +56,10 @@ class DistSender : public Sender {
   };
 
   DistSender(des::Simulator* _sim, const std::string& _name,
-             const des::Model* _parent, u32 _id, Network* _network,
-             u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
-             u32 _receiverMaxId, f64 _rateLimit, Json::Value _settings);
+             const des::Model* _parent, u32 _id, const std::string& _queuing,
+             Network* _network, u32 _minMessageSize, u32 _maxMessageSize,
+             u32 _receiverMinId, u32 _receiverMaxId, f64 _rateLimit,
+             Json::Value _settings);
   ~DistSender();
   void distIds(u32 _distMinId, u32 _distMaxId);
 

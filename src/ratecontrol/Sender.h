@@ -44,9 +44,9 @@ class Receiver;
 class Sender : public Node {
  public:
   Sender(des::Simulator* _sim, const std::string& _name,
-         const des::Model* _parent, u32 _id, Network* _network,
-         u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
-         u32 _receiverMaxId);
+         const des::Model* _parent, u32 _id, const std::string& _queuing,
+         Network* _network, u32 _minMessageSize, u32 _maxMessageSize,
+         u32 _receiverMinId, u32 _receiverMaxId);
   virtual ~Sender();
 
   void setInjectionRate(f64 _rate);

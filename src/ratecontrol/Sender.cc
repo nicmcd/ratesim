@@ -36,10 +36,10 @@
 #include "ratecontrol/Receiver.h"
 
 Sender::Sender(des::Simulator* _sim, const std::string& _name,
-               const des::Model* _parent, u32 _id, Network* _network,
-               u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
-               u32 _receiverMaxId)
-    : Node(_sim, _name, _parent, _id, _network),
+               const des::Model* _parent, u32 _id, const std::string& _queuing,
+               Network* _network, u32 _minMessageSize, u32 _maxMessageSize,
+               u32 _receiverMinId, u32 _receiverMaxId)
+    : Node(_sim, _name, _parent, _id, _queuing, _network),
       minMessageSize(_minMessageSize), maxMessageSize(_maxMessageSize),
       injectionRate_(0.0), receiverMinId_(_receiverMinId),
       receiverMaxId_(_receiverMaxId), messageCount_(0) {}

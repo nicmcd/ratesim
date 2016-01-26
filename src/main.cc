@@ -62,6 +62,7 @@ s32 main(s32 _argc, char** _argv) {
   u32 numReceivers = settings["receivers"].asUInt();;
   u32 numRelays = settings["relays"].asUInt();
   des::Tick networkDelay = (des::Tick)settings["network_delay"].asUInt64();
+  std::string queuing = settings["queuing"].asString();
   f64 rateLimit = settings["rate_limit"].asDouble();
   u32 minMessageSize = settings["min_message_size"].asUInt();
   u32 maxMessageSize = settings["max_message_size"].asUInt();
@@ -116,7 +117,7 @@ s32 main(s32 _argc, char** _argv) {
   for (u32 r = 0; r < numReceivers; r++) {
     receivers.at(r) = new Receiver(
         &sim, createName("Receiver", r, numReceivers), nullptr, nodeId++,
-        &network);
+        queuing, &network);
     receivers.at(r)->debug = verbosity > 1;
   }
 
@@ -126,7 +127,8 @@ s32 main(s32 _argc, char** _argv) {
     f64 relayRateLimit = rateLimit / numRelays;
     assert(relayRateLimit <= 1.0);
     relays.at(r) = new Relay(&sim, createName("Relay", r, numRelays),
-                             nullptr, nodeId++, &network, relayRateLimit);
+                             nullptr, nodeId++, queuing, &network,
+                             relayRateLimit);
     relays.at(r)->debug = verbosity > 1;
   }
 
@@ -136,21 +138,21 @@ s32 main(s32 _argc, char** _argv) {
     if (algorithm == "basic") {
       senders.at(s) = new BasicSender(
           &sim, createName("Sender", s, numSenders), nullptr,
-          nodeId++, &network, minMessageSize,
+          nodeId++, queuing, &network, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
           receivers.at(numReceivers - 1)->id,
           settings["sender_config"]);
     } else if (algorithm == "relay") {
       senders.at(s) = new RelaySender(
           &sim, createName("Sender", s, numSenders), nullptr,
-          nodeId++, &network, minMessageSize,
+          nodeId++, queuing, &network, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
           receivers.at(numReceivers - 1)->id,
           settings["sender_config"]);
     } else if (algorithm == "dist") {
       senders.at(s) = new DistSender(
           &sim, createName("Sender", s, numSenders), nullptr,
-          nodeId++, &network, minMessageSize,
+          nodeId++, queuing, &network, minMessageSize,
           maxMessageSize, receivers.at(0)->id,
           receivers.at(numReceivers - 1)->id,
           rateLimit, settings["sender_config"]);

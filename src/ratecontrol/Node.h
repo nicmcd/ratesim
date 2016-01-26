@@ -36,6 +36,7 @@
 #include <rnd/Random.h>
 
 #include <string>
+#include <queue>
 
 class Message;
 class Network;
@@ -43,7 +44,8 @@ class Network;
 class Node : public des::Model {
  public:
   Node(des::Simulator* _sim, const std::string& _name,
-       const des::Model* _parent, u32 _id, Network* _network);
+       const des::Model* _parent, u32 _id, const std::string& _queuing,
+       Network* _network);
   virtual ~Node();
 
   /*
@@ -80,10 +82,15 @@ class Node : public des::Model {
 
  private:
   void handle_recv(des::Event* _event);
+  void handle_enqueue(des::Event* _event);
   void handle_send(des::Event* _event);
-  void handle_delayedSend(des::Event* _event);
 
-  des::Time nextSendTime_;
+
+  bool eventPending_;
+  const std::string queuing_;
+  std::queue<Message*> fifoQueue_;
+  std::priority_queue<Message*> priorityQueue_;
+
   Network* network_;
 };
 

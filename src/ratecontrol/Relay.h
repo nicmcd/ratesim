@@ -52,8 +52,8 @@ class Relay : public Node {
   };
 
   Relay(des::Simulator* _sim, const std::string& _name,
-        const des::Model* _parent, u32 _id, Network* _network,
-        f64 _rate);
+        const des::Model* _parent, u32 _id, const std::string& _queuing,
+        Network* _network, f64 _rate);
   ~Relay();
 
   void recv(Message* _msg);

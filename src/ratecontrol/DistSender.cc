@@ -39,11 +39,12 @@
 #include "ratecontrol/Message.h"
 
 DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
-                       const des::Model* _parent, u32 _id, Network* _network,
+                       const des::Model* _parent, u32 _id,
+                       const std::string& _queuing, Network* _network,
                        u32 _minMessageSize, u32 _maxMessageSize,
                        u32 _receiverMinId, u32 _receiverMaxId, f64 _rateLimit,
                        Json::Value _settings)
-    : Sender(_sim, _name, _parent, _id, _network, _minMessageSize,
+    : Sender(_sim, _name, _parent, _id, _queuing, _network, _minMessageSize,
              _maxMessageSize, _receiverMinId, _receiverMaxId),
       distRate_(_rateLimit),
       stealTokens_(_settings["steal_tokens"].asBool()),
@@ -144,7 +145,7 @@ void DistSender::recvRequest(Message* _msg) {
   }
 
   // remove token being given away
-  res->tokens = std::min(std::max(0, giveTokens), req->tokens);
+  res->tokens = std::min(std::max(0u, giveTokens), req->tokens);
   removeTokens(res->tokens);
 
   // give rate as requested and available above rate threshold

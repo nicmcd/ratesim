@@ -36,9 +36,10 @@
 #include "ratecontrol/Network.h"
 
 Node::Node(des::Simulator* _sim, const std::string& _name,
-           const des::Model* _parent, u32 _id, Network* _network)
-    : des::Model(_sim, _name, _parent), id(_id), nextSendTime_(0),
-      network_(_network) {
+           const des::Model* _parent, u32 _id, const std::string& _queuing,
+           Network* _network)
+    : des::Model(_sim, _name, _parent), id(_id), eventPending_(false),
+      queuing_(_queuing), network_(_network) {
   // get a random seed (try for truly random)
   std::random_device rnd;
   std::uniform_int_distribution<u32> dist;
@@ -59,20 +60,16 @@ void Node::future_recv(Message* _msg, des::Time _time) {
 }
 
 void Node::send(Message* _msg) {
-  // renew the next send time
-  nextSendTime_ = des::Time::max(simulator->time().plusEps(),  // NOLINT
-                                 nextSendTime_);
-
   // create and add the send message event
   simulator->addEvent(new MessageEvent(
-      this, static_cast<des::EventHandler>(&Node::handle_send), nextSendTime_,
-      _msg));
+      this, static_cast<des::EventHandler>(&Node::handle_enqueue),
+      simulator->time().plusEps(), _msg));
 }
 
 void Node::send(Message* _msg, des::Time _time) {
   simulator->addEvent(new MessageEvent(
-      this, static_cast<des::EventHandler>(&Node::handle_delayedSend), _time,
-      _msg));
+      this, static_cast<des::EventHandler>(&Node::handle_enqueue),
+      _time, _msg));
 }
 
 u64 Node::cyclesToSend(u32 _size, f64 _rate) {
@@ -98,18 +95,55 @@ void Node::handle_recv(des::Event* _event) {
   delete evt;
 }
 
-void Node::handle_send(des::Event* _event) {
+void Node::handle_enqueue(des::Event* _event) {
   MessageEvent* evt = reinterpret_cast<MessageEvent*>(_event);
-  Node* node = network_->getNode(evt->msg->dst);
-  des::Time now = simulator->time();
-  des::Time recv(now + evt->msg->size + network_->delay());
-  node->future_recv(evt->msg, recv);
-  dlogf("%s", evt->msg->toString().c_str());
+  if (queuing_ == "fifo") {
+    fifoQueue_.push(evt->msg);
+  } else if (queuing_ == "priority") {
+    assert(false);  // NOT YET SUPPORTED
+  } else {
+    assert(false);
+  }
   delete evt;
+
+  if (!eventPending_) {
+    handle_send(nullptr);
+  }
 }
 
-void Node::handle_delayedSend(des::Event* _event) {
-  MessageEvent* evt = reinterpret_cast<MessageEvent*>(_event);
-  send(evt->msg);
-  delete evt;
+void Node::handle_send(des::Event* _event) {
+  if (_event) {  // might be null due to direct call
+    assert(eventPending_);
+    delete _event;
+  } else {
+    assert(!eventPending_);
+  }
+
+  Message* msg = nullptr;
+  bool more = false;
+  if (queuing_ == "fifo") {
+    msg = fifoQueue_.front();
+    fifoQueue_.pop();
+    more = !fifoQueue_.empty();
+  } else if (queuing_ == "priority") {
+    assert(false);  // NOT YET SUPPORTED
+  } else {
+    assert(false);
+  }
+
+  Node* node = network_->getNode(msg->dst);
+  des::Time now = simulator->time();
+  des::Time recvTime(now + msg->size + network_->delay());
+  node->future_recv(msg, recvTime);
+  dlogf("%s", msg->toString().c_str());
+
+  if (more) {
+    des::Time nextTime(now + msg->size);
+    simulator->addEvent(new des::Event(
+      this, static_cast<des::EventHandler>(&Node::handle_send),
+      nextTime));
+    eventPending_ = true;
+  } else {
+    eventPending_ = false;
+  }
 }

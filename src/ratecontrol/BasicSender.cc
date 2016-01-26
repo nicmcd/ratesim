@@ -35,11 +35,12 @@
 #include "ratecontrol/Message.h"
 
 BasicSender::BasicSender(des::Simulator* _sim, const std::string& _name,
-                         const des::Model* _parent, u32 _id, Network* _network,
+                         const des::Model* _parent, u32 _id,
+                         const std::string& _queuing, Network* _network,
                          u32 _minMessageSize, u32 _maxMessageSize,
                          u32 _receiverMinId, u32 _receiverMaxId,
                          Json::Value _settings)
-    : Sender(_sim, _name, _parent, _id, _network, _minMessageSize,
+    : Sender(_sim, _name, _parent, _id, _queuing, _network, _minMessageSize,
              _maxMessageSize, _receiverMinId, _receiverMaxId) {
   (void)_settings;  // unused
 }

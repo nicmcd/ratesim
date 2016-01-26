@@ -46,9 +46,9 @@ class Relay;
 class RelaySender : public Sender {
  public:
   RelaySender(des::Simulator* _sim, const std::string& _name,
-              const des::Model* _parent, u32 _id, Network* _network,
-              u32 _minMessageSize, u32 _maxMessageSize, u32 _receiverMinId,
-              u32 _receiverMaxId, Json::Value _settings);
+              const des::Model* _parent, u32 _id, const std::string& _queuing,
+              Network* _network, u32 _minMessageSize, u32 _maxMessageSize,
+              u32 _receiverMinId, u32 _receiverMaxId, Json::Value _settings);
   ~RelaySender();
   void relayIds(u32 _relayMinId, u32 _relayMaxId);
 

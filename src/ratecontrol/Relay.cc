@@ -35,9 +35,10 @@
 #include "ratecontrol/Message.h"
 
 Relay::Relay(des::Simulator* _sim, const std::string& _name,
-             const des::Model* _parent, u32 _id, Network* _network,
-             f64 _rate)
-    : Node(_sim, _name, _parent, _id, _network), rate_(_rate), nextTime_(0) {
+             const des::Model* _parent, u32 _id, const std::string& _queuing,
+             Network* _network, f64 _rate)
+    : Node(_sim, _name, _parent, _id, _queuing, _network), rate_(_rate),
+      nextTime_(0) {
   assert(rate_ > 0.0 && rate_ <= 1.0);
 }
 

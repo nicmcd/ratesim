@@ -44,7 +44,8 @@ class Network;
 class Receiver : public Node {
  public:
   Receiver(des::Simulator* _sim, const std::string& _name,
-           const des::Model* _parent, u32 _id, Network* _network);
+           const des::Model* _parent, u32 _id, const std::string& _queuing,
+           Network* _network);
   ~Receiver();
 
   void recv(Message* _msg) override;
