@@ -212,25 +212,25 @@ void DistSender::processQueue() {
     u32 tokens = getTokens();
 
     // peek at the next message
-    Message* _msg = sendQueue_.front();
+    Message* msg = sendQueue_.front();
 
     // try to send the message
-    if (tokens >= _msg->size) {
+    if (tokens >= msg->size) {
       dlogf("sending a message");
       // send the message
-      send(_msg);
+      send(msg);
 
       // remove the used tokens
-      removeTokens(_msg->size);
+      removeTokens(msg->size);
 
       // remove the sent message from the queue
       sendQueue_.pop();
-      queueSize_ -= _msg->size;
+      queueSize_ -= msg->size;
       continue;
     }
 
     // this figures out how many ticks we'd have to wait at the current rate
-    f64 tokensShort = (_msg->size - tokens_) / rate_;
+    f64 tokensShort = (msg->size - tokens_) / rate_;
 
     // can't send the message, try to send a steal request
     if ((stealTokens_ || (stealRate_ && rate_ < 1.0)) &&  // stealing enabled
@@ -261,7 +261,8 @@ void DistSender::processQueue() {
         assert(peer != id);
 
         // create and send the request message
-        send(new Message(id, peer, 1, 0, Message::DIST_REQUEST, req));
+        send(new Message(id, peer, 1, 0, Message::DIST_REQUEST, req,
+                         msg->priority));
 
         // increment the requests outstanding counter
         requestsOutstanding_++;
@@ -280,7 +281,7 @@ void DistSender::processQueue() {
       dlogf("starting wait period");
       // the message can't be sent. for one of various reasons we've decided to
       // wait for credit accumulation instead of stealing
-      des::Tick tokensNeeded = _msg->size - tokens;
+      des::Tick tokensNeeded = msg->size - tokens;
       des::Time wakeUp = simulator->time() + (u64)(tokensNeeded / rate_);
       des::Event* evt = new des::Event(this, static_cast<des::EventHandler>(
           &DistSender::handle_wait), wakeUp);

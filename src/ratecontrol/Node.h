@@ -35,10 +35,12 @@
 #include <prim/prim.h>
 #include <rnd/Random.h>
 
-#include <string>
 #include <queue>
+#include <string>
+#include <vector>
 
-class Message;
+#include "ratecontrol/Message.h"
+
 class Network;
 
 class Node : public des::Model {
@@ -89,7 +91,8 @@ class Node : public des::Model {
   bool eventPending_;
   const std::string queuing_;
   std::queue<Message*> fifoQueue_;
-  std::priority_queue<Message*> priorityQueue_;
+  std::priority_queue<Message*, std::vector<Message*>,
+                      MessagePriorityComparator> priorityQueue_;
 
   Network* network_;
 };

@@ -56,7 +56,8 @@ void Relay::recv(Message* _msg) {
   Response* resp = new Response();
   resp->reqId = req->reqId;
   Message* respMsg = new Message(id, _msg->src, 1, _msg->trans,
-                                 Message::RELAY_RESPONSE, resp);
+                                 Message::RELAY_RESPONSE, resp,
+                                 _msg->priority);
 
   // reformat the message for the real destination
   _msg->dst = req->msgDst;

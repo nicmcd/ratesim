@@ -100,7 +100,7 @@ void Node::handle_enqueue(des::Event* _event) {
   if (queuing_ == "fifo") {
     fifoQueue_.push(evt->msg);
   } else if (queuing_ == "priority") {
-    assert(false);  // NOT YET SUPPORTED
+    priorityQueue_.push(evt->msg);
   } else {
     assert(false);
   }
@@ -126,7 +126,9 @@ void Node::handle_send(des::Event* _event) {
     fifoQueue_.pop();
     more = !fifoQueue_.empty();
   } else if (queuing_ == "priority") {
-    assert(false);  // NOT YET SUPPORTED
+    msg = priorityQueue_.top();
+    priorityQueue_.pop();
+    more = !priorityQueue_.empty();
   } else {
     assert(false);
   }

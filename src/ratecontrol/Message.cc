@@ -33,9 +33,9 @@
 #include <sstream>
 
 Message::Message(u32 _src, u32 _dst, u32 _size, u64 _trans, u8 _type,
-                 void* _data)
+                 void* _data, u64 _priority)
     : src(_src), dst(_dst), size(_size), trans(_trans), type(_type),
-      data(_data) {}
+      data(_data), priority(_priority) {}
 
 Message::~Message() {}
 
@@ -51,3 +51,8 @@ MessageEvent::MessageEvent(des::Model* _model, des::EventHandler _handler,
     : des::Event(_model, _handler, _time), msg(_msg) {}
 
 MessageEvent::~MessageEvent() {}
+
+bool MessagePriorityComparator::operator()(const Message* _lhs,
+                                           const Message* _rhs) const {
+  return _lhs->priority > _rhs->priority;
+}

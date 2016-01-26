@@ -78,7 +78,8 @@ void Sender::handle_sendMessage(des::Event* _event) {
   u64 trans = ((u64)id << 32) | ((u64)messageCount_);
   dlogf("trans=%lu size=%u", trans, size);
   messageCount_++;
-  Message* msg = new Message(id, dst, size, trans, Message::PLAIN, nullptr);
+  Message* msg = new Message(id, dst, size, trans, Message::PLAIN, nullptr,
+                             simulator->time().tick);
   sendMessage(msg);
 
   // create an event to send the next message

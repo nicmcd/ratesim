@@ -38,7 +38,8 @@
 
 class Message {
  public:
-  Message(u32 _src, u32 _dst, u32 _size, u64 _trans, u8 _type, void* _data);
+  Message(u32 _src, u32 _dst, u32 _size, u64 _trans, u8 _type, void* _data,
+          u64 _priority);
   ~Message();
 
   u32 src;
@@ -47,6 +48,7 @@ class Message {
   u64 trans;
   u8 type;
   void* data;
+  u64 priority;
 
   static const u8 PLAIN = 0;
   static const u8 RELAY_REQUEST = 1;
@@ -63,6 +65,11 @@ class MessageEvent : public des::Event {
                Message* _msg);
   ~MessageEvent();
   Message* msg;
+};
+
+class MessagePriorityComparator {
+ public:
+  bool operator()(const Message* _lhs, const Message* _rhs) const;
 };
 
 #endif  // RATECONTROL_MESSAGE_H_
