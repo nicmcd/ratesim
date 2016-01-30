@@ -39,7 +39,7 @@ def main(args):
   wireLatencyScatter(ax3, raw, xlim)
   totalLatencyScatter(ax4, raw, xlim)
   latencyPercentiles(ax5, raw, 2000, 10000)
-  latencyPercentiles(ax6, raw, 12000, 20000)
+  latencyPercentiles(ax6, raw, 17500, 25000)
 
   fig.tight_layout()
 
