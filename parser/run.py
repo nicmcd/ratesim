@@ -15,10 +15,12 @@ import numpy
 
 def main(args):
   # get the RawData object
+  print('parsing')
   raw = rateparse.RawData(args.input)
 
   # if requested, save the raw data to a file
   if args.output:
+    print('writing raw file')
     raw.write(args.output)
 
   # create a quad-plot
@@ -34,21 +36,45 @@ def main(args):
   xlim = getXlim(raw)
 
   # plot data
-  bulkAggregates(ax1, raw, xlim, smoothness=args.smoothness)
-  bandwidthOverhead(ax2, raw, xlim, smoothness=args.smoothness)
-  wireLatencyScatter(ax3, raw, xlim)
-  totalLatencyScatter(ax4, raw, xlim)
-  latencyPercentiles(ax5, raw, 2000, 10000)
-  latencyPercentiles(ax6, raw, 17500, 25000)
+  print('plotting bulk aggregates')
+  bulkAggregatesPlot(ax1, raw, xlim, smoothness=args.smoothness)
+  print('plotting bandwidth overhead')
+  bandwidthOverheadPlot(ax2, raw, xlim, smoothness=args.smoothness)
+  print('plotting wire latency')
+  wireLatencyScatterPlot(ax3, raw, xlim)
+  print('plotting total latency')
+  totalLatencyScatterPlot(ax4, raw, xlim)
+  print('plotting latency percentiles in section 1')
+  latencyPercentilesPlot(ax5, raw, 2000, 10000)
+  print('plotting latency percentiles in section 2')
+  latencyPercentilesPlot(ax6, raw, 18000, 25000)
 
   fig.tight_layout()
 
   if args.viewplot:
+    print('showing plot')
     plt.show()
 
   if args.plotfile:
+    print('saving plot file')
     fig.savefig(args.plotfile)
 
+  if args.datafile:
+    print('writing data file')
+    with open(args.datafile, 'w') as df:
+      for sect, (xmin, xmax) in enumerate([(2000, 10000), (18000, 25000)]):
+        print('Section #{0}'.format(sect), file=df)
+        bw = bandwidthOverhead(raw, xmin, xmax)
+        print('bandwidth overhead = {0}'.format(bw), file=df)
+        p29 = latencyPercentile(raw, xmin, xmax, 0.99)
+        print('99%ile latency = {0}'.format(p29), file=df)
+        p39 = latencyPercentile(raw, xmin, xmax, 0.999)
+        print('99.9%ile latency = {0}'.format(p39), file=df)
+        p49 = latencyPercentile(raw, xmin, xmax, 0.9999)
+        print('99.99%ile latency = {0}'.format(p49), file=df)
+        print('', file=df)
+
+  print('done')
 
 def getXlim(raw):
   # extract latency data
@@ -56,7 +82,7 @@ def getXlim(raw):
   return max(times) * 1.02
 
 
-def bulkAggregates(ax, raw, xlim, smoothness):
+def bulkAggregatesPlot(ax, raw, xlim, smoothness):
   # extract the data
   ss = raw.extractRate(['Sender_*'], 'send')
   sr = raw.extractRate(['Sender_*'], 'recv')
@@ -87,7 +113,7 @@ def bulkAggregates(ax, raw, xlim, smoothness):
   ax.set_title('Bandwidths by Group')
 
 
-def bandwidthOverhead(ax, raw, xlim, smoothness):
+def bandwidthOverheadPlot(ax, raw, xlim, smoothness):
   # extract the data
   total_rate = raw.extractRate(['.*'], 'recv')
   receiver_rate = raw.extractRate(['Receiver_.*'], 'recv')
@@ -108,7 +134,17 @@ def bandwidthOverhead(ax, raw, xlim, smoothness):
   ax.grid(True)
 
 
-def wireLatencyScatter(ax, raw, xlim):
+def bandwidthOverhead(raw, xmin, xmax):
+  # extract the data
+  total_rate = raw.extractRate(['.*'], 'recv')
+  receiver_rate = raw.extractRate(['Receiver_.*'], 'recv')
+  rate = numpy.subtract(total_rate, receiver_rate)
+
+  # average the range
+  return numpy.average(rate[xmin:xmax+1])
+
+
+def wireLatencyScatterPlot(ax, raw, xlim):
   # extract latency data
   times, latencies = raw.extractLatencies('onwire')
 
@@ -124,7 +160,7 @@ def wireLatencyScatter(ax, raw, xlim):
   ax.grid(True)
 
 
-def totalLatencyScatter(ax, raw, xlim):
+def totalLatencyScatterPlot(ax, raw, xlim):
   # extract latency data
   times, latencies = raw.extractLatencies('total')
 
@@ -140,13 +176,15 @@ def totalLatencyScatter(ax, raw, xlim):
   ax.grid(True)
 
 
-def latencyPercentiles(ax, raw, xmin, xmax):
+def latencyPercentilesPlot(ax, raw, xmin, xmax):
   # extract latency data
   _, latencies = raw.extractLatencies('total', bounds=[xmin, xmax])
 
-  # scatter plot
+  # compute the distribution
   cdfx = numpy.sort(latencies)
   cdfy = numpy.linspace(1 / len(latencies), 1.0, len(latencies))
+
+  # scatter plot
   ax.scatter(cdfx, cdfy, color='b', s=2)
 
   # format axis
@@ -157,6 +195,20 @@ def latencyPercentiles(ax, raw, xmin, xmax):
   ax.set_title('Log CDF ({0}-{1})'.format(xmin, xmax))
   ax.set_yscale('close_to_one', nines=5)
   ax.grid(True)
+
+
+def latencyPercentile(raw, xmin, xmax, percentile):
+  # extract latency data
+  _, latencies = raw.extractLatencies('total', bounds=[xmin, xmax])
+
+  # compute the distribution
+  cdfx = numpy.sort(latencies)
+  cdfy = numpy.linspace(1 / len(latencies), 1.0, len(latencies))
+
+  # retrieve the percentile sample latency
+  assert percentile > 0.0 and percentile <= 1.0
+  index = len(cdfx) * percentile
+  return cdfx[index]
 
 
 def smooth(data, radius):
@@ -181,17 +233,6 @@ def smooth(data, radius):
   return ndata
 
 if __name__ == '__main__':
-  """
-  data = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
-          1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
-          1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
-          1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]
-  ndata = smooth(data, 4)
-  print('{0}\n{1}'.format(data, ndata))
-  import sys
-  sys.exit(0)
-  """
-
   ap = argparse.ArgumentParser()
   ap.add_argument('input',
                   help='input data or log file')
@@ -201,6 +242,8 @@ if __name__ == '__main__':
                   help='smoothing factor applied to all data')
   ap.add_argument('-p', '--plotfile', default=None,
                   help='filename of output plot file')
+  ap.add_argument('-d', '--datafile', default=None,
+                  help='output data file')
   ap.add_argument('-v', '--viewplot', action='store_true',
                   help='show plot GUI')
   main(ap.parse_args())

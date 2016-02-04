@@ -60,7 +60,6 @@ class RawData(object):
         'stats' is a dict with simulation stats
     """
 
-    print('parsing')
     mode = 'settings'
     settings = ''
     actions = {}
@@ -161,7 +160,6 @@ class RawData(object):
       else:
         raise Exception('invalid mode: {0}'.format(mode))
 
-    print('done parsing')
     return (settings, actions, transactions, stats)
 
 
