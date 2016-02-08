@@ -18,7 +18,7 @@
   },
   "relays": 500,
   "receivers": 750,
-  "network_delay": 10,
+  "network_delay": 500,
   "queuing": "fifo",
   "rate_limit": 500.0,
   "min_message_size": 5,
