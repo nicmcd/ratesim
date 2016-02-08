@@ -26,5 +26,5 @@
   "threads": 1,
   "verbosity": 2,
   "algorithm": "relay",
-  "log_file": "relay.log.gz"
+  "log_file": "-"
 }

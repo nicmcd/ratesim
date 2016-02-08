@@ -107,9 +107,9 @@ class DistSender : public Sender {
   const bool stealTokens_;
   const bool stealRate_;
   const u32 maxTokens_;  // bucket size
-  const u32 tokenThreshold_;  // tokens comparison
-  const u32 rateThreshold_;  // tokens comparison
-  const u64 stealThreshold_;  // ticks comparison (using current rate)
+  const f64 tokenThreshold_;  // bucket percentage
+  const f64 rateThreshold_;  // bucket percentage
+  const u64 stealThreshold_;  // bucket percentage
   const f64 maxRateGiveFactor_;
   const u32 maxRequestsOutstanding_;
 

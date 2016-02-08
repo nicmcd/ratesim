@@ -132,16 +132,16 @@ void DistSender::recvRequest(Message* _msg) {
   // request id
   res->reqId = req->reqId;
 
-  // make sure we don't give anything if we are stealing or waiting
+  // make sure we don't give anything if we are stealing
   u32 tokens = getTokens();
-  if (requestsOutstanding_ > 0 || waiting_) {
+  if (requestsOutstanding_ > 0) {
     tokens = 0;
   }
 
   // give tokens as requested and available above token threshold
   u32 giveTokens = 0;
-  if (tokens >= tokenThreshold_) {
-    giveTokens = tokens - tokenThreshold_;
+  if (tokens >= (tokenThreshold_ * maxTokens_)) {
+    giveTokens = tokens - (u32)(tokenThreshold_ * maxTokens_);
   }
 
   // remove token being given away
@@ -149,11 +149,15 @@ void DistSender::recvRequest(Message* _msg) {
   removeTokens(res->tokens);
 
   // give rate as requested and available above rate threshold
-  if ((req->rate > 0.0) && (tokens >= rateThreshold_)) {
+  if ((req->rate > 0.0) &&
+      (tokens >= (rateThreshold_ * maxTokens_))) {
     // determine the factor of giving
+    f64 giveFactor = maxRateGiveFactor_;
+    /*
     f64 giveFactor = ((f64)(tokens - rateThreshold_) /
                       (f64)(maxTokens_ - rateThreshold_));
     giveFactor *= maxRateGiveFactor_;
+    */
 
     // determine the give rate
     res->rate = removeRate(giveFactor, req->rate);
@@ -211,6 +215,49 @@ void DistSender::processQueue() {
     // get the current token count
     u32 tokens = getTokens();
 
+    // if enabled and needed, issue steal requests
+    if ((stealTokens_ || (stealRate_ && rate_ < 1.0)) &&  // stealing enabled
+        // (requestsOutstanding_ < maxRequestsOutstanding_) &&  // more steals
+        (requestsOutstanding_ == 0) &&  // more steals
+        (tokens <= (stealThreshold_ * maxTokens_))) {  // low water mark trigger
+      // create a random set with destination peers
+      rnd::Queue<u32> peers(&prng);
+      peers.add(distMinId_, distMaxId_);
+      peers.erase(id);
+
+      // issue all available steal requests
+      distReqId_++;
+      u32 numReqs = maxRequestsOutstanding_ - requestsOutstanding_;
+      for (u32 rr = 0; rr < numReqs; rr++) {
+        // format the steal request
+        DistSender::Request* req = new DistSender::Request();
+        req->reqId = 0x1000000000000000lu | ((u64)id << 32) | distReqId_;
+
+        // request enough tokens for the whole queue
+        u32 wantTokens = std::min((u32)queueSize_, maxTokens_);
+        req->tokens = stealTokens_ ? wantTokens / maxRequestsOutstanding_ : 0;
+
+        // divide the remaining rate by number of requests incase all the
+        //  responders say yes. we can only have a total of 1.0 rate
+        req->rate = stealRate_ ? (1.0 - rate_) / numReqs : 0.0;
+
+        // choose a random peer
+        assert(peers.size() > 0);
+        u32 peer = peers.pop();
+        assert(peer != id);
+
+        // create and send the request message
+        send(new Message(id, peer, 1, 0, Message::DIST_REQUEST, req,
+                         simulator->time().tick));
+
+        // increment the requests outstanding counter
+        requestsOutstanding_++;
+
+        dlogf("sent steal request %lu to %u for %u tokens and %f rate",
+              req->reqId, peer, req->tokens, req->rate);
+      }
+    }
+
     // peek at the next message
     Message* msg = sendQueue_.front();
 
@@ -226,80 +273,26 @@ void DistSender::processQueue() {
       // remove the sent message from the queue
       sendQueue_.pop();
       queueSize_ -= msg->size;
-      continue;
-    }
-
-    // this figures out how many ticks we'd have to wait at the current rate
-    f64 ticksDistance = (msg->size - tokens_) / rate_;
-
-    // can't send the message, try to send a steal request
-    if ((stealTokens_ || (stealRate_ && rate_ < 1.0)) &&  // stealing enabled
-        (requestsOutstanding_ == 0) &&  // no outstanding requests
-        (ticksDistance > stealThreshold_)) {  // steal threshold triggered
-      // create a random set with destination peers
-      rnd::Queue<u32> peers(&prng);
-      peers.add(distMinId_, distMaxId_);
-      peers.erase(id);
-
-      // the message can't be sent, but we can send steal requests
-      distReqId_++;
-      while (requestsOutstanding_ < maxRequestsOutstanding_) {
-        // format the steal request
-        DistSender::Request* req = new DistSender::Request();
-        req->reqId = 0x1000000000000000lu | ((u64)id << 32) | distReqId_;
-
-        // request enough tokens for the whole queue
-        req->tokens = stealTokens_ ? queueSize_ / maxRequestsOutstanding_ : 0;
-
-        // divide the remaining rate by number of requests incase all the
-        //  responders say yes. we can only have a total of 1.0 rate
-        req->rate = stealRate_ ? (1.0 - rate_) / maxRequestsOutstanding_ : 0.0;
-
-        // choose a random peer
-        assert(peers.size() > 0);
-        u32 peer = peers.pop();
-        assert(peer != id);
-
-        // create and send the request message
-        send(new Message(id, peer, 1, 0, Message::DIST_REQUEST, req,
-                         msg->priority));
-
-        // increment the requests outstanding counter
-        requestsOutstanding_++;
-
-        dlogf("sent steal request %lu to %u for %u tokens and %f rate",
-              req->reqId, peer, req->tokens, req->rate);
+    } else if (!waiting_) {
+      // can't send the message, wait for tokens to arrive
+      dlogf("creating wait period");
+      waiting_ = true;
+      des::Tick tokensNeeded = msg->size - tokens;
+      des::Time wakeUp = simulator->time();
+      if (rate_ < 0.001) {
+        wakeUp += maxTokens_;  // cure silent div by zero -> zero
+      } else {
+        wakeUp += (u64)(tokensNeeded / rate_);
       }
-
-      // create a wait event just in case
-      des::Tick tokensNeeded = msg->size - tokens;
-      des::Time wakeUp = simulator->time() + (u64)(tokensNeeded / rate_);
-      des::Event* evt = new des::Event(this, static_cast<des::EventHandler>(
-          &DistSender::handle_wait), wakeUp);
-      simulator->addEvent(evt);
-      waiting_ = true;
+      if (wakeUp == simulator->time()) {
+        dlogf("%lu %f %lu", tokensNeeded, rate_, (u64)(tokensNeeded / rate_));
+      }
+      assert(wakeUp != simulator->time());
+      simulator->addEvent(new des::Event(this, static_cast<des::EventHandler>(
+          &DistSender::handle_wait), wakeUp));
+    } else {
       break;
     }
-
-    // can't send the message or a steal request, just wait for tokens
-    if ((!waiting_) &&  // not already waiting
-        (requestsOutstanding_ == 0) &&  // no outstanding requests
-        ((!stealTokens_ && !stealRate_) ||  // stealing disabled
-         (ticksDistance <= stealThreshold_))) {  // not stealing
-      dlogf("starting wait period");
-      // the message can't be sent. for one of various reasons we've decided to
-      // wait for credit accumulation instead of stealing
-      des::Tick tokensNeeded = msg->size - tokens;
-      des::Time wakeUp = simulator->time() + (u64)(tokensNeeded / rate_);
-      des::Event* evt = new des::Event(this, static_cast<des::EventHandler>(
-          &DistSender::handle_wait), wakeUp);
-      simulator->addEvent(evt);
-      waiting_ = true;
-      break;
-    }
-
-    // right now we can't do anything productive
-    break;
   }
 }
 

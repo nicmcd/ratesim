@@ -25,5 +25,5 @@
   "threads": 1,
   "verbosity": 2,
   "algorithm": "basic",
-  "log_file": "basic.log.gz"
+  "log_file": "-"
 }

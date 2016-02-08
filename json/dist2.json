@@ -17,9 +17,9 @@
     "steal_tokens": true,
     "steal_rate": false,
     "max_tokens": 160,
-    "token_threshold": 16,
-    "rate_threshold": 144,
-    "steal_threshold": 500,
+    "token_threshold": 0.20,
+    "rate_threshold": 0.90,
+    "rate_threshold": 0.10,
     "max_rate_give_factor": 1.0,
     "max_requests_outstanding": 3
   },
@@ -33,5 +33,5 @@
   "threads": 1,
   "verbosity": 2,
   "algorithm": "dist",
-  "log_file": "dist2.log.gz"
+  "log_file": "-"
 }
