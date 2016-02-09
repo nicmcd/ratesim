@@ -12,52 +12,53 @@ import rateparse
 import numpy
 
 
-
 def main(args):
-  # get the RawData object
-  print('parsing')
-  raw = rateparse.RawData(args.input)
+  if args.output or args.plotfile or args.viewplot:
+    # get the RawData object
+    print('parsing')
+    raw = rateparse.RawData(args.input)
 
   # if requested, save the raw data to a file
   if args.output:
     print('writing raw file')
     raw.write(args.output)
 
-  # create a quad-plot
-  fig = plt.figure(figsize=(16, 9))
-  ax1 = fig.add_subplot(2, 3, 1)
-  ax2 = fig.add_subplot(2, 3, 2)
-  ax3 = fig.add_subplot(2, 3, 3)
-  ax4 = fig.add_subplot(2, 3, 4)
-  ax5 = fig.add_subplot(2, 3, 5)
-  ax6 = fig.add_subplot(2, 3, 6)
+  if args.plotfile or args.viewplot:
+    # create a quad-plot
+    fig = plt.figure(figsize=(16, 9))
+    ax1 = fig.add_subplot(2, 3, 1)
+    ax2 = fig.add_subplot(2, 3, 2)
+    ax3 = fig.add_subplot(2, 3, 3)
+    ax4 = fig.add_subplot(2, 3, 4)
+    ax5 = fig.add_subplot(2, 3, 5)
+    ax6 = fig.add_subplot(2, 3, 6)
 
-  # get the xlim to be used by all time-based plots
-  xlim = getXlim(raw)
+    # get the xlim to be used by all time-based plots
+    xlim = getXlim(raw)
 
-  # plot data
-  print('plotting bulk aggregates')
-  bulkAggregatesPlot(ax1, raw, xlim, smoothness=args.smoothness)
-  print('plotting bandwidth overhead')
-  bandwidthOverheadPlot(ax2, raw, xlim, smoothness=args.smoothness)
-  print('plotting wire latency')
-  wireLatencyScatterPlot(ax3, raw, xlim)
-  print('plotting total latency')
-  totalLatencyScatterPlot(ax4, raw, xlim)
-  print('plotting latency percentiles in section 1')
-  latencyPercentilesPlot(ax5, raw, 2000, 10000)
-  print('plotting latency percentiles in section 2')
-  latencyPercentilesPlot(ax6, raw, 18000, 25000)
+    # plot data
+    print('plotting bulk aggregates')
+    bulkAggregatesPlot(ax1, raw, xlim, smoothness=args.smoothness)
+    print('plotting bandwidth overhead')
+    bandwidthOverheadPlot(ax2, raw, xlim, smoothness=args.smoothness)
+    print('plotting wire latency')
+    wireLatencyScatterPlot(ax3, raw, xlim)
+    print('plotting total latency')
+    totalLatencyScatterPlot(ax4, raw, xlim)
+    print('plotting latency percentiles in section 1')
+    latencyPercentilesPlot(ax5, raw, 2000, 10000)
+    print('plotting latency percentiles in section 2')
+    latencyPercentilesPlot(ax6, raw, 18000, 25000)
 
-  fig.tight_layout()
+    fig.tight_layout()
 
-  if args.viewplot:
-    print('showing plot')
-    plt.show()
+    if args.viewplot:
+      print('showing plot')
+      plt.show()
 
-  if args.plotfile:
-    print('saving plot file')
-    fig.savefig(args.plotfile)
+    if args.plotfile:
+      print('saving plot file')
+      fig.savefig(args.plotfile)
 
   if args.datafile:
     print('writing data file')

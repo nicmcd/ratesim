@@ -46,7 +46,7 @@ RelaySender::RelaySender(des::Simulator* _sim, const std::string& _name,
       relayReqId_(0),
       maxOutstanding_(_settings["max_outstanding"].asUInt()),
       credits_(_settings["max_outstanding"].asUInt()) {
-  assert(_settings.isMember("max_outstanding"));
+  assert(!_settings["max_outstanding"].isNull());
   assert(maxOutstanding_ > 0);
 }
 

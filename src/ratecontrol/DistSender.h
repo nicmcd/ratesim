@@ -81,6 +81,9 @@ class DistSender : public Sender {
   // this processes the send queue
   void processQueue();
 
+  // issue steal requests if needed and available
+  void processSteal();
+
   // this returns the current amount of tokens this sender has
   u32 getTokens();
 
@@ -89,6 +92,9 @@ class DistSender : public Sender {
 
   // this removes tokens from this sender
   void removeTokens(u32 _tokens);
+
+  // this returns the current rate capped at 1.0
+  f64 getRate() const;
 
   // this removes a portion of the rate as specified by _factor (a percentage)
   //  and takes no more than _max (an absolute). the removed value is returned.
@@ -109,7 +115,7 @@ class DistSender : public Sender {
   const u32 maxTokens_;  // bucket size
   const f64 tokenThreshold_;  // bucket percentage
   const f64 rateThreshold_;  // bucket percentage
-  const u64 stealThreshold_;  // bucket percentage
+  const f64 stealThreshold_;  // bucket percentage
   const f64 maxRateGiveFactor_;
   const u32 maxRequestsOutstanding_;
 

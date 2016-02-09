@@ -31,7 +31,7 @@
 #include <des/des.h>
 #include <jsoncpp/json/json.h>
 #include <prim/prim.h>
-#include <settings/Settings.h>
+#include <settings/settings.h>
 
 #include <cassert>
 #include <cmath>
@@ -56,7 +56,7 @@ std::string createName(const std::string& _prefix, u32 _id, u32 _total);
 
 s32 main(s32 _argc, char** _argv) {
   Json::Value settings;
-  settings::Settings::commandLine(_argc, _argv, &settings);
+  settings::commandLine(_argc, _argv, &settings);
 
   u32 numSenders = settings["senders"].asUInt();
   u32 numReceivers = settings["receivers"].asUInt();;
@@ -103,7 +103,7 @@ s32 main(s32 _argc, char** _argv) {
 
   // log the configuration
   if (verbosity > 0) {
-    std::string conf = settings::Settings::toString(settings);
+    std::string conf = settings::toString(settings);
     logger.log(conf.c_str(), conf.size());
   }
 

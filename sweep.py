@@ -9,14 +9,18 @@ import sys
 import taskrun
 
 
-def names(filename, run):
-  name = os.path.splitext(os.path.basename(filename))[0]
+def getName(filename):
+  return os.path.splitext(os.path.basename(filename))[0]
+
+
+def getFiles(filename, run, idx):
+  name = getName(filename)
   names = {
     'name': name,
     'json': filename,
-    'log' : os.path.join(run, '{0}.log.gz'.format(name)),
-    'plot': os.path.join(run, '{0}.png'.format(name)),
-    'data': os.path.join(run, '{0}.txt'.format(name))}
+    'log' : os.path.join(run, '{0}_{1}.log.gz'.format(name, idx)),
+    'plot': os.path.join(run, '{0}_{1}.png'.format(name, idx)),
+    'data': os.path.join(run, '{0}_{1}.txt'.format(name, idx))}
   return names
 
 
@@ -32,24 +36,24 @@ def main(args):
   for f in os.listdir('json'):
     f = os.path.join('json', f)
     if os.path.isfile(f) and f.endswith('.json'):
-      io = names(f, args.run)
-      if re.search(args.names, io['name']):
-        sim_cmd = 'bin/ratesim {0} log_file=string={1}'.format(
-          io['json'], io['log'])
-        if args.override:
-          for override in args.override:
-            sim_cmd += ' {0}'.format(override)
-        sim = taskrun.ProcessTask(
-          tm, 'sim_{0}'.format(io['name']), sim_cmd)
-        plot_cmd = 'parser/run.py {0}'.format(io['log'])
-        if args.plot:
-          plot_cmd += ' -s {0} -p {1}'.format(args.smoothing, io['plot'])
-        if args.data:
-          plot_cmd += ' -d {0}'.format(io['data'])
-        plot = taskrun.ProcessTask(tm, 'plot_{0}'.format(io['name']), plot_cmd)
-        plot.add_dependency(sim)
-      else:
-        print('skipping {0}'.format(io['name']))
+      if re.search(args.regex, getName(f)):
+        for val in args.vals:
+          io = getFiles(f, args.run, val)
+          sim_cmd = 'bin/ratesim {0} log_file=string={1}'.format(
+            io['json'], io['log'])
+          sim_cmd += ' {0}{1}'.format(args.mod, val)
+          if args.override:
+            for override in args.override:
+              sim_cmd += ' {0}'.format(override)
+          sim = taskrun.ProcessTask(
+            tm, 'sim_{0}'.format(io['name']), sim_cmd)
+          plot_cmd = 'parser/run.py {0}'.format(io['log'])
+          if args.plot:
+            plot_cmd += ' -s {0} -p {1}'.format(args.smoothing, io['plot'])
+          if args.data:
+            plot_cmd += ' -d {0}'.format(io['data'])
+          plot = taskrun.ProcessTask(tm, 'plot_{0}'.format(io['name']), plot_cmd)
+          plot.add_dependency(sim)
 
   # set up output directory
   if os.path.isdir(args.run):
@@ -76,9 +80,13 @@ if __name__ == '__main__':
                   help='remove old files forcefully')
   ap.add_argument('run',
                   help='name of the run (directory)')
+  ap.add_argument('mod',
+                  help='the command line modifier without value')
+  ap.add_argument('vals', nargs='+',
+                  help='the values for the sweep')
   ap.add_argument('-s', '--smoothing', type=int, default=50,
                   help='plot line smoothing factor')
-  ap.add_argument('-n', '--names', default='.*',
+  ap.add_argument('-r', '--regex', default='.*',
                   help='regex to match names')
   ap.add_argument('-o', '--override', nargs='*',
                   help='override string for settings files')
