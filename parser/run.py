@@ -13,7 +13,7 @@ import numpy
 
 
 def main(args):
-  if args.output or args.plotfile or args.viewplot:
+  if args.output or args.plotfile or args.viewplot or args.datafile:
     # get the RawData object
     print('parsing')
     raw = rateparse.RawData(args.input)
@@ -109,7 +109,7 @@ def bulkAggregatesPlot(ax, raw, xlim, smoothness):
   ax.set_ylabel('Bandwidth (phits/cycle)')
   ax.set_xlim(0, xlim)
   ax.set_ylim([0, max(raw.settings['rate_limit'] * 1.1, max(rrb) * 1.50)])
-  ax.legend()
+  ax.legend()  # fontsize= in here!
   ax.grid(True)
   ax.set_title('Bandwidths by Group')
 
