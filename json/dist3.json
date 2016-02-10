@@ -4,12 +4,7 @@
   "sender_config": {
     "steal_tokens": false,
     "steal_rate": true,
-    "max_tokens": 500,
-    "token_threshold": 0.40,
-    "rate_threshold": 0.90,
-    "steal_threshold": 0.20,
-    "max_rate_give_factor": 1.0,
-    "max_requests_outstanding": 3
+    "params": "$$(dist_params.json)$$"
   },
   "relays": 0,
   "receivers": 750,

@@ -1,0 +1,13 @@
+{
+  // common parameters
+  "max_tokens": 500,
+  // stealing parameters
+  "steal_threshold": 0.20,
+  "token_ask_factor": 0.15,
+  "rate_ask_factor": 1.0,
+  "max_requests_outstanding": 10,
+  // giving parameters
+  "give_token_threshold": 0.40,
+  "give_rate_threshold": 0.90,
+  "max_rate_give_factor": 0.90
+}

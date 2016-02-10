@@ -47,37 +47,53 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
     : Sender(_sim, _name, _parent, _id, _queuing, _network, _minMessageSize,
              _maxMessageSize, _receiverMinId, _receiverMaxId),
       distRate_(_rateLimit),
+      // common parameters
+      maxTokens_(_settings["params"]["max_tokens"].asUInt64()),
+      // stealing parameters
       stealTokens_(_settings["steal_tokens"].asBool()),
       stealRate_(_settings["steal_rate"].asBool()),
-      maxTokens_(_settings["max_tokens"].asUInt64()),
-      tokenThreshold_(_settings["token_threshold"].asDouble()),
-      rateThreshold_(_settings["rate_threshold"].asDouble()),
-      stealThreshold_(_settings["steal_threshold"].asDouble()),
-      maxRateGiveFactor_(_settings["max_rate_give_factor"].asDouble()),
-      maxRequestsOutstanding_(_settings["max_requests_outstanding"].asUInt()),
+      stealThreshold_(_settings["params"]["steal_threshold"].asDouble()),
+      tokenAskFactor_(_settings["params"]["token_ask_factor"].asDouble()),
+      rateAskFactor_(_settings["params"]["rate_ask_factor"].asDouble()),
+      maxRequestsOutstanding_(
+          _settings["params"]["max_requests_outstanding"].asUInt()),
+      // giving parameters
+      giveTokenThreshold_(
+          _settings["params"]["give_token_threshold"].asDouble()),
+      giveRateThreshold_(
+          _settings["params"]["give_rate_threshold"].asDouble()),
+      maxRateGiveFactor_(
+          _settings["params"]["max_rate_give_factor"].asDouble()),
+      // init FSMs
       distReqId_(0),
       tokens_(maxTokens_),
       lastTick_(0),
+      rateAsked_(0.0),
       queueSize_(0),
       requestsOutstanding_(0),
       waiting_(false) {
   // verify settings fields
+  assert(!_settings["params"]["max_tokens"].isNull());
   assert(!_settings["steal_tokens"].isNull());
   assert(!_settings["steal_rate"].isNull());
-  assert(!_settings["max_tokens"].isNull());
-  assert(!_settings["token_threshold"].isNull());
-  assert(!_settings["rate_threshold"].isNull());
-  assert(!_settings["steal_threshold"].isNull());
-  assert(!_settings["max_rate_give_factor"].isNull());
-  assert(!_settings["max_requests_outstanding"].isNull());
+  assert(!_settings["params"]["steal_threshold"].isNull());
+  assert(!_settings["params"]["token_ask_factor"].isNull());
+  assert(!_settings["params"]["rate_ask_factor"].isNull());
+  assert(!_settings["params"]["max_requests_outstanding"].isNull());
+  assert(!_settings["params"]["give_token_threshold"].isNull());
+  assert(!_settings["params"]["give_rate_threshold"].isNull());
+  assert(!_settings["params"]["max_rate_give_factor"].isNull());
 
   // verify const settings values
   assert(maxTokens_ >= minMessageSize);
-  assert(tokenThreshold_ >= 0.0 && tokenThreshold_ <= 1.0);
-  assert(rateThreshold_ >= 0.0 && rateThreshold_ <= 1.0);
   assert(stealThreshold_ >= 0.0 && stealThreshold_ <= 1.0);
-  assert(maxRateGiveFactor_ > 0.0 && maxRateGiveFactor_ <= 1.0);
+  assert(tokenAskFactor_ > 0.0 && tokenAskFactor_ <= 1.0);
+  assert(rateAskFactor_ > 0.0 && rateAskFactor_ <= 1.0);
   assert(maxRequestsOutstanding_ > 0);
+  assert(giveTokenThreshold_ >= 0.0 && giveTokenThreshold_ <= 1.0);
+  assert(giveRateThreshold_ >= 0.0 && giveRateThreshold_ <= 1.0);
+  assert(maxRateGiveFactor_ > 0.0 && maxRateGiveFactor_ <= 1.0);
+
   if (stealRate_) {
     // there is the case where we have more than the threshold but less
     //  than the message size. if rate=0, can't every recover
@@ -87,13 +103,7 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
   // add debug stats print
   simulator->addEvent(new des::Event(
       this, static_cast<des::EventHandler>(&DistSender::showStats),
-      des::Time(9999)));
-  simulator->addEvent(new des::Event(
-        this, static_cast<des::EventHandler>(&DistSender::showStats),
-      des::Time(19876)));
-  simulator->addEvent(new des::Event(
-      this, static_cast<des::EventHandler>(&DistSender::showStats),
-      des::Time(29999)));
+      des::Time(0)));
 }
 
 DistSender::~DistSender() {}
@@ -149,29 +159,31 @@ void DistSender::recvRequest(Message* _msg) {
 
   // give tokens as requested and available above token threshold
   u32 giveTokens = 0;
-  if (tokens >= (tokenThreshold_ * maxTokens_)) {
-    giveTokens = tokens - (u32)(tokenThreshold_ * maxTokens_);
+  u32 giveTokenTrigger = (u32)(giveTokenThreshold_ * maxTokens_);
+  if (tokens >= giveTokenTrigger) {
+    giveTokens = tokens - giveTokenTrigger;  // only give excess tokens
   }
 
   // remove token being given away
-  res->tokens = std::min(std::max(0u, giveTokens), req->tokens);
+  res->tokens = std::min(giveTokens, req->tokens);
   removeTokens(res->tokens);
 
   // give rate as requested and available above rate threshold
-  if ((req->rate > 0.0) &&
-      (tokens >= (rateThreshold_ * maxTokens_))) {
+  res->rateReq = req->rate;
+  f64 giveRateTrigger = giveRateThreshold_ * maxTokens_;
+  if ((req->rate > 0.0) && (tokens >= giveRateTrigger)) {
     // determine the factor of giving
     f64 giveFactor = maxRateGiveFactor_;
     /*
-    f64 giveFactor = ((f64)(tokens - rateThreshold_) /
-                      (f64)(maxTokens_ - rateThreshold_));
+    f64 giveFactor = ((f64)(tokens - giveRateThreshold_) /
+                      (f64)(maxTokens_ - giveRateThreshold_));
     giveFactor *= maxRateGiveFactor_;
     */
 
     // determine the give rate
-    res->rate = removeRate(giveFactor, req->rate);
+    res->givenRate = removeRate(giveFactor, req->rate);
   } else {
-    res->rate = 0;
+    res->givenRate = 0.0;
   }
 
   // reverse the message back to the requester
@@ -196,10 +208,11 @@ void DistSender::recvResponse(Message* _msg) {
   // consume the stolen values
   DistSender::Response* res =
       reinterpret_cast<DistSender::Response*>(_msg->data);
-  dlogf("recvd steal response %lu from %u for %u tokens and %f rate",
-        res->reqId, _msg->src, res->tokens, res->rate);
+  dlogf("recvd steal response %lu from %u for %u tokens and %f rate (%f)",
+        res->reqId, _msg->src, res->tokens, res->givenRate, res->rateReq);
   addTokens(res->tokens);
-  addRate(res->rate);
+  addRate(res->givenRate);
+  rateAsked_ -= res->rateReq;
 
   // cleanup
   delete res;
@@ -251,17 +264,7 @@ void DistSender::processQueue() {
       waiting_ = true;
       des::Tick tokensNeeded = msg->size - tokens;
       des::Time wakeUp = simulator->time();
-      if (getRate() < 0.001) {
-        dlogf("no rate for wait period!");
-        if (simulator->time() > 60000) exit(0);
-        wakeUp += maxTokens_;  // cure silent div by zero -> zero
-      } else {
-        wakeUp += (u64)(tokensNeeded / getRate());
-      }
-      if (wakeUp == simulator->time()) {
-        dlogf("%lu %f %lu", tokensNeeded, getRate(),
-              (u64)(tokensNeeded / getRate()));
-      }
+      wakeUp += (u64)(tokensNeeded / std::max(0.001, getRate()));
       assert(wakeUp != simulator->time());
       simulator->addEvent(new des::Event(this, static_cast<des::EventHandler>(
           &DistSender::handle_wait), wakeUp));
@@ -277,8 +280,8 @@ void DistSender::processSteal() {
 
   // conditions for stealing
   bool lowWaterTrigger = tokens < (stealThreshold_ * maxTokens_);
-  bool canStealTokens = stealTokens_;
-  bool canStealRate = stealRate_ && (getRate() < 1.0);
+  bool canStealTokens = stealTokens_ && (tokens < maxTokens_);
+  bool canStealRate = stealRate_ && ((getRate() + rateAsked_) < 0.9999);
   bool stealsAvailable = requestsOutstanding_ < maxRequestsOutstanding_;
 
   if ((canStealTokens || canStealRate) &&
@@ -304,12 +307,17 @@ void DistSender::processSteal() {
       req->reqId = 0x1000000000000000lu | ((u64)id << 32) | distReqId_;
 
       // request enough tokens for the whole queue
-      u32 wantTokens = maxTokens_;  // std::min((u32)queueSize_, maxTokens_);
-      req->tokens = stealTokens_ ? wantTokens / maxRequestsOutstanding_ : 0;
+      u32 askTokens = maxTokens_ - tokens;
+      req->tokens = stealTokens_ ? askTokens * tokenAskFactor_ : 0;
 
       // divide the remaining rate by number of requests incase all the
       //  responders say yes. we can only have a total of 1.0 rate
-      req->rate = stealRate_ ? (1.0 - getRate()) / numReqs : 0.0;
+      f64 askRate = ((1.0 - getRate() - rateAsked_) * rateAskFactor_) / numReqs;
+      req->rate = stealRate_ ? askRate : 0.0;
+      rateAsked_ += askRate;
+      assert(getRate() + rateAsked_ < 1.00001);
+
+      assert(req->tokens > 0 || req->rate > 0.0);
 
       // choose a random peer
       assert(peers.size() > 0);
@@ -370,4 +378,10 @@ void DistSender::addRate(f64 _rate) {
 void DistSender::showStats(des::Event* _event) {
   dlogf("tokens=%u rate=%f", getTokens(), rate_);
   delete _event;
+
+  if (simulator->time() <= 90000) {
+    simulator->addEvent(new des::Event(
+        this, static_cast<des::EventHandler>(&DistSender::showStats),
+        simulator->time() + 1000));
+  }
 }

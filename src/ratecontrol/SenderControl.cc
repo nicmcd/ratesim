@@ -30,7 +30,7 @@
  */
 #include "ratecontrol/SenderControl.h"
 
-#include <strings/Strings.h>
+#include <strop/strop.h>
 
 #include <cassert>
 
@@ -71,9 +71,9 @@ void SenderControl::handle_rateChange(des::Event* _event) {
       reinterpret_cast<des::ItemEvent<std::string>*>(_event);
   const std::string& control = evt->item;
   std::unordered_set<u32> usedSenders;
-  std::vector<std::string> groups = Strings::split(control, ':');
+  std::vector<std::string> groups = strop::split(control, ':');
   for (auto& group : groups) {
-    std::vector<std::string> setting = Strings::split(group, '=');
+    std::vector<std::string> setting = strop::split(group, '=');
     assert(setting.size() == 2);
     const std::string& senderRange = setting.at(0);
     f64 rate = std::stod(setting.at(1));
@@ -86,7 +86,7 @@ void SenderControl::handle_rateChange(des::Event* _event) {
       stop = senders_->size();
     } else {
       // a single specifier (i.e. "4") or a range (i.e. "4-89")
-      std::vector<std::string> startStop = Strings::split(senderRange, '-');
+      std::vector<std::string> startStop = strop::split(senderRange, '-');
       assert(startStop.size() == 1 || startStop.size() == 2);
       start = std::stoul(startStop.at(0));
       stop = startStop.size() == 2 ? std::stoul(startStop.at(1)) : start;

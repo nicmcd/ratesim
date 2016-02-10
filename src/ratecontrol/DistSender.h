@@ -52,7 +52,8 @@ class DistSender : public Sender {
   struct Response {
     u64 reqId;
     u32 tokens;
-    f64 rate;
+    f64 rateReq;
+    f64 givenRate;
   };
 
   DistSender(des::Simulator* _sim, const std::string& _name,
@@ -110,19 +111,28 @@ class DistSender : public Sender {
   u32 distMinId_;
   u32 distMaxId_;
 
+  // common parameters
+  const u32 maxTokens_;  // bucket size
+
+  // stealing parameters
   const bool stealTokens_;
   const bool stealRate_;
-  const u32 maxTokens_;  // bucket size
-  const f64 tokenThreshold_;  // bucket percentage
-  const f64 rateThreshold_;  // bucket percentage
   const f64 stealThreshold_;  // bucket percentage
-  const f64 maxRateGiveFactor_;
+  const f64 tokenAskFactor_;  // bucket percentage of not filled portion
+  const f64 rateAskFactor_;  // percentage of not used rate to 1.0 div by reqs
   const u32 maxRequestsOutstanding_;
+
+  // giving parameters
+  const f64 giveTokenThreshold_;  // bucket percentage
+  const f64 giveRateThreshold_;  // bucket percentage
+  const f64 maxRateGiveFactor_;
 
   u64 distReqId_;
   f64 rate_;
   f64 tokens_;
   des::Tick lastTick_;
+
+  f64 rateAsked_;  // this keeps track of how much we've asked for
 
   std::queue<Message*> sendQueue_;
   u64 queueSize_;
