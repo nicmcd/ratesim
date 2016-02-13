@@ -10,12 +10,14 @@ HEADER_DIRS   := \
 	../libprim/inc \
 	../libdes/inc \
 	../librnd/inc \
+	../libjson/inc \
 	../libsettings/inc \
 	../libstrop/inc
 STATIC_LIBS   := \
 	../libprim/bld/libprim.a \
 	../libdes/bld/libdes.a \
 	../librnd/bld/librnd.a \
+	../libjson/bld/libjson.a \
 	../libsettings/bld/libsettings.a \
 	../libstrop/bld/libstrop.a
 
@@ -35,7 +37,7 @@ CXX_FLAGS     := -std=c++11 -Wall -Wextra -pedantic -Wfatal-errors
 CXX_FLAGS     += -march=native -g -O3 -flto
 CXX_FLAGS     += -pthread
 #CXX_FLAGS     += -DNDEBUGLOG
-LINK_FLAGS    := -lpthread -lz -ljsoncpp -Wl,--no-as-needed
+LINK_FLAGS    := -lpthread -lz -Wl,--no-as-needed
 
 #--------------------- Auto Makefile ------------------------------------------#
 include ~/.makeccpp/auto_bin.mk
