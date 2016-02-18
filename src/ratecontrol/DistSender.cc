@@ -87,7 +87,7 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
   // verify const settings values
   assert(maxTokens_ >= minMessageSize);
   assert(stealThreshold_ >= 0.0 && stealThreshold_ <= 1.0);
-  assert(tokenAskFactor_ > 0.0 && tokenAskFactor_ <= 1.0);
+  assert(tokenAskFactor_ > 0.0);
   assert(rateAskFactor_ > 0.0 && rateAskFactor_ <= 1.0);
   assert(maxRequestsOutstanding_ > 0);
   assert(giveTokenThreshold_ >= 0.0 && giveTokenThreshold_ <= 1.0);
@@ -307,8 +307,9 @@ void DistSender::processSteal() {
       req->reqId = 0x1000000000000000lu | ((u64)id << 32) | distReqId_;
 
       // request enough tokens for the whole queue
-      u32 askTokens = maxTokens_ - tokens;
-      req->tokens = stealTokens_ ? askTokens * tokenAskFactor_ : 0;
+      u32 askTokens = (u32)(((1.0 / maxRequestsOutstanding_)
+                             * tokenAskFactor_) * (maxTokens_ - tokens));
+      req->tokens = stealTokens_ ? askTokens : 0;
 
       // divide the remaining rate by number of requests incase all the
       //  responders say yes. we can only have a total of 1.0 rate

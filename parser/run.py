@@ -46,9 +46,9 @@ def main(args):
     print('plotting total latency')
     totalLatencyScatterPlot(ax4, raw, xlim)
     print('plotting latency percentiles in section 1')
-    latencyPercentilesPlot(ax5, raw, 2000, 10000)
+    latencyPercentilesPlot(ax5, raw, 10000, 90000)
     print('plotting latency percentiles in section 2')
-    latencyPercentilesPlot(ax6, raw, 18000, 25000)
+    latencyPercentilesPlot(ax6, raw, 90000, 130000)
 
     fig.tight_layout()
 
@@ -63,7 +63,7 @@ def main(args):
   if args.datafile:
     print('writing data file')
     with open(args.datafile, 'w') as df:
-      for sect, (xmin, xmax) in enumerate([(2000, 10000), (18000, 25000)]):
+      for sect, (xmin, xmax) in enumerate([(10000, 90000), (90000, 130000)]):
         print('Section #{0}'.format(sect), file=df)
         bw = bandwidthOverhead(raw, xmin, xmax)
         print('bandwidth overhead = {0}'.format(bw), file=df)
@@ -108,8 +108,8 @@ def bulkAggregatesPlot(ax, raw, xlim, smoothness):
   ax.set_xlabel('Time (cycles)')
   ax.set_ylabel('Bandwidth (phits/cycle)')
   ax.set_xlim(0, xlim)
-  ax.set_ylim([0, max(raw.settings['rate_limit'] * 1.1, max(rrb) * 1.50)])
-  ax.legend()  # fontsize= in here!
+  ax.set_ylim([0, max(raw.settings['rate_limit'] * 1.1, max(rrb) * 1.20)])
+  ax.legend(fontsize=10)
   ax.grid(True)
   ax.set_title('Bandwidths by Group')
 

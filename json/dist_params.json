@@ -3,7 +3,7 @@
   "max_tokens": 500,
   // stealing parameters
   "steal_threshold": 0.20,
-  "token_ask_factor": 0.15,
+  "token_ask_factor": 1.0,
   "rate_ask_factor": 1.0,
   "max_requests_outstanding": 10,
   // giving parameters
