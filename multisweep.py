@@ -71,7 +71,7 @@ def rawSettings():
       'code': 'mro',
       'path': 'sender_config.params.max_requests_outstanding',
       'type': 'uint',
-      'values': ['03', '06', '09', '12', '15'],
+      'values': ['03', '06', '09', '12', '15', '18', '21'],
       'affects': ['dist2', 'dist3', 'dist4']
     },
     {

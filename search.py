@@ -52,11 +52,14 @@ def main(args):
   bestFile = None
 
   # find data files matching the regex
+  searchCount = 0
   for ff in os.listdir(args.batch):
     ff = os.path.join(args.batch, ff)
     if (os.path.isfile(ff) and
         ff.endswith('.txt') and
         re.search(args.regex, getName(ff))):
+      searchCount += 1
+
       # print the matching file name
       if args.verbose:
         print('file \'{0}\' matched'.format(ff))
@@ -75,6 +78,10 @@ def main(args):
   # print the best finding
   print('the best section {0} {1} value is: {2} ({3})'
         .format(args.sect, args.stat, bestFile, bestValue))
+  if args.all:
+    with open(bestFile, 'r') as fd:
+      print(fd.read())
+  print('{0} configurations searched'.format(searchCount))
 
 
 if __name__ == '__main__':
@@ -91,5 +98,7 @@ if __name__ == '__main__':
                   help='the statistic to use for comparison')
   ap.add_argument('-v', '--verbose', action='store_true',
                   help='enable verbose output')
+  ap.add_argument('-a', '--all', action='store_true',
+                  help='show all stats of winner')
   args = ap.parse_args()
   sys.exit(main(args))
