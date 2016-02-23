@@ -50,14 +50,14 @@ def rawSettings():
       'code': 'st',
       'path': 'sender_config.params.steal_threshold',
       'type': 'float',
-      'values': ['0.10', '0.20', '0.30'],
+      'values': ['0.10', '0.20', '0.30', '0.40', '0.50'],
       'affects': ['dist2', 'dist3', 'dist4']
     },
     {
       'code': 'tak',
       'path': 'sender_config.params.token_ask_factor',
       'type': 'float',
-      'values': ['0.80', '1.00', '1.20'],
+      'values': ['0.80', '1.00', '1.20', '1.40'],
       'affects': ['dist2', 'dist4']
     },
     {
