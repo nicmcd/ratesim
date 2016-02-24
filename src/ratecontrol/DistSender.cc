@@ -62,8 +62,8 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
           _settings["params"]["give_token_threshold"].asDouble()),
       giveRateThreshold_(
           _settings["params"]["give_rate_threshold"].asDouble()),
-      maxRateGiveFactor_(
-          _settings["params"]["max_rate_give_factor"].asDouble()),
+      giveRateFactor_(
+          _settings["params"]["give_rate_factor"].asDouble()),
       // init FSMs
       distReqId_(0),
       tokens_(maxTokens_),
@@ -82,7 +82,7 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
   assert(!_settings["params"]["max_requests_outstanding"].isNull());
   assert(!_settings["params"]["give_token_threshold"].isNull());
   assert(!_settings["params"]["give_rate_threshold"].isNull());
-  assert(!_settings["params"]["max_rate_give_factor"].isNull());
+  assert(!_settings["params"]["give_rate_factor"].isNull());
 
   // verify const settings values
   assert(maxTokens_ >= minMessageSize);
@@ -92,7 +92,7 @@ DistSender::DistSender(des::Simulator* _sim, const std::string& _name,
   assert(maxRequestsOutstanding_ > 0);
   assert(giveTokenThreshold_ >= 0.0 && giveTokenThreshold_ <= 1.0);
   assert(giveRateThreshold_ >= 0.0 && giveRateThreshold_ <= 1.0);
-  assert(maxRateGiveFactor_ > 0.0 && maxRateGiveFactor_ <= 1.0);
+  assert(giveRateFactor_ > 0.0 && giveRateFactor_ <= 1.0);
 
   if (stealRate_) {
     // there is the case where we have more than the threshold but less
@@ -172,16 +172,8 @@ void DistSender::recvRequest(Message* _msg) {
   res->rateReq = req->rate;
   f64 giveRateTrigger = giveRateThreshold_ * maxTokens_;
   if ((req->rate > 0.0) && (tokens >= giveRateTrigger)) {
-    // determine the factor of giving
-    f64 giveFactor = maxRateGiveFactor_;
-    /*
-    f64 giveFactor = ((f64)(tokens - giveRateThreshold_) /
-                      (f64)(maxTokens_ - giveRateThreshold_));
-    giveFactor *= maxRateGiveFactor_;
-    */
-
     // determine the give rate
-    res->givenRate = removeRate(giveFactor, req->rate);
+    res->givenRate = removeRate(giveRateFactor_, req->rate);
   } else {
     res->givenRate = 0.0;
   }

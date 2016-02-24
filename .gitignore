@@ -43,3 +43,7 @@ inc/
 # images
 *.png
 *.jpg
+
+# python junk
+__pycache__
+*.pyc

@@ -9,9 +9,7 @@ import shutil
 import sys
 import taskrun
 
-
-def getName(filename):
-  return os.path.splitext(os.path.basename(filename))[0]
+from common import *
 
 
 def parse(filename, verbose):
@@ -19,7 +17,8 @@ def parse(filename, verbose):
     'bandwidth overhead': 'bw',
     '99%ile latency': '2-9s',
     '99.9%ile latency': '3-9s',
-    '99.99%ile latency': '4-9s'
+    '99.99%ile latency': '4-9s',
+    '99.999%ile latency': '5-9s'
   }
 
   stats = {}
@@ -29,6 +28,7 @@ def parse(filename, verbose):
       line = line.strip()
       if line.startswith('Section #'):
         sect = int(line[len('Section #'):])
+        assert sect not in stats
         stats[sect] = {}
         if verbose:
           print('section {0}'.format(sect))
@@ -91,10 +91,10 @@ if __name__ == '__main__':
   ap.add_argument('regex',
                   help='a regex to match data file basenames')
   ap.add_argument('sect', type=int,
-                  choices=[0,1],
+                  choices=[1, 2, 3],
                   help='the section to use for comparison')
   ap.add_argument('stat', type=str,
-                  choices=['bw', '2-9s', '3-9s', '4-9s'],
+                  choices=['bw', '2-9s', '3-9s', '4-9s', '5-9s'],
                   help='the statistic to use for comparison')
   ap.add_argument('-v', '--verbose', action='store_true',
                   help='enable verbose output')

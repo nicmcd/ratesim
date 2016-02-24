@@ -9,5 +9,5 @@
   // giving parameters
   "give_token_threshold": 0.40,
   "give_rate_threshold": 0.90,
-  "max_rate_give_factor": 0.90
+  "give_rate_factor": 0.90
 }

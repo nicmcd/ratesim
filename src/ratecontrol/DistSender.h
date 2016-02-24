@@ -125,7 +125,7 @@ class DistSender : public Sender {
   // giving parameters
   const f64 giveTokenThreshold_;  // bucket percentage
   const f64 giveRateThreshold_;  // bucket percentage
-  const f64 maxRateGiveFactor_;
+  const f64 giveRateFactor_;
 
   u64 distReqId_;
   f64 rate_;
