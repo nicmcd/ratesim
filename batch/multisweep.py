@@ -22,9 +22,9 @@ def generateSettings(alg):
     elif param['code'] == 'mo':
       param['values'] = ['100', '150', '200', '1000', '10000', '100000']
     elif param['code'] == 'mt':
-      param['values'] = ['1000', '2000']
+      param['values'] = ['1000', '1500', '2000']
     elif param['code'] == 'st':
-      param['values'] = ['0.10', '0.30', '0.50', '0.70']
+      param['values'] = ['0.10', '0.30', '0.40', '0.50', '0.60', '0.70']
     elif param['code'] == 'tak':
       param['values'] = ['1.00', '1.20', '1.40', '1.60']
     elif param['code'] == 'rak':
