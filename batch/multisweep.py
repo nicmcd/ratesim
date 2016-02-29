@@ -24,19 +24,19 @@ def generateSettings(alg):
     elif param['code'] == 'mt':
       param['values'] = ['1000', '1500', '2000']
     elif param['code'] == 'st':
-      param['values'] = ['0.10', '0.30', '0.40', '0.50', '0.60', '0.70']
+      param['values'] = ['0.10', '0.30', '0.40', '0.50', '0.60', '0.70', '0.80']
     elif param['code'] == 'tak':
-      param['values'] = ['1.00', '1.20', '1.40', '1.60']
+      param['values'] = ['1.00', '1.20', '1.40', '1.60', '1.80']
     elif param['code'] == 'rak':
       param['values'] = ['0.90', '1.00']
     elif param['code'] == 'mro':
-      param['values'] = ['10', '20', '30', '40']
+      param['values'] = ['10', '20', '25', '30', '35', '40']
     elif param['code'] == 'gtt':
       param['values'] = ['0.05', '0.20', '0.35', '0.50']
     elif param['code'] == 'grt':
       param['values'] = ['0.90', '0.95']
     elif param['code'] == 'grf':
-      param['values'] = ['0.90', '0.95']
+      param['values'] = ['0.85', '0.90', '0.95']
     else:
       assert False, 'unknown param {0}'.format(param['code'])
 
