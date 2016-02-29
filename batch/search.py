@@ -10,6 +10,7 @@ import sys
 import taskrun
 
 from common import *
+from penalty import *
 from stats import *
 
 
@@ -21,8 +22,8 @@ def main(args):
   assert os.path.isdir(args.batch)
 
   # keep track of the smallest
-  bestValue = float('inf')
-  bestFile = None
+  minValue = float('inf')
+  minFile = None
 
   # find data files matching the regex
   searchCount = 0
@@ -31,30 +32,38 @@ def main(args):
     if (os.path.isfile(ff) and
         ff.endswith('.txt') and
         re.search(args.regex, getName(ff))):
+      # parse the file
+      stats = parseStats(ff)
+      if stats is None:
+        continue
+
       searchCount += 1
 
-      # print the matching file name
+      # extract the value
+      if args.mode == 'single':
+        value = stats[args.sect][args.stat]
+      elif args.mode == 'penalty':
+        value = computePenalty(stats)
+      else:
+        assert False, 'The programmer is an idiot!'
+
+      # compare against current min
+      if value < minValue:
+        minValue = value
+        minFile = ff
+
+      # print the value
       if args.verbose:
-        print('file \'{0}\' matched'.format(ff))
+        print('file \'{0}\' {1}: {2}'.format(
+          ff, 'value' if args.mode == 'single' else 'penalty', value))
 
-      # parse the file
-      stats = parseStats(ff, args.verbose)
-
-      # compare against current best
-      if stats[args.sect][args.stat] < bestValue:
-        if args.verbose:
-          print('old={0} new={1} file={2}'.format(
-            bestValue, stats[args.sect][args.stat], ff))
-        bestValue = stats[args.sect][args.stat]
-        bestFile = ff
-
-  # print the best finding
-  print('the best section {0} {1} value is: {2} ({3})'
-        .format(args.sect, args.stat, bestFile, bestValue))
-  if args.all:
-    with open(bestFile, 'r') as fd:
-      print(fd.read())
+  # print the min finding
   print('{0} configurations searched'.format(searchCount))
+  print('the file with the minimum value of {0} is:\n{1}'
+        .format(minValue, minFile))
+  if args.all:
+    with open(minFile, 'r') as fd:
+      print(fd.read())
 
 
 if __name__ == '__main__':
@@ -63,10 +72,12 @@ if __name__ == '__main__':
                   help='name of the batch (directory)')
   ap.add_argument('regex',
                   help='a regex to match data file basenames')
-  ap.add_argument('sect', type=int,
+  ap.add_argument('mode', choices=['single', 'penalty'],
+                  help='optimize single metric or use penalty score')
+  ap.add_argument('--sect', type=int, default=2,
                   choices=[1, 2, 3],
                   help='the section to use for comparison')
-  ap.add_argument('stat', type=str,
+  ap.add_argument('--stat', type=str, default='4-9s',
                   choices=['bw', '2-9s', '3-9s', '4-9s', '5-9s'],
                   help='the statistic to use for comparison')
   ap.add_argument('-v', '--verbose', action='store_true',

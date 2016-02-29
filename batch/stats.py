@@ -23,4 +23,8 @@ def parseStats(filename, verbose=False):
         if verbose:
           print('stat \'{0}\' -> \'{1}\''.format(stat, value))
         stats[sect][strmap[stat]] = float(value)
-  return stats
+
+  if len(stats) == 0:
+    return None
+  else:
+    return stats
