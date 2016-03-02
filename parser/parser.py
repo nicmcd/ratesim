@@ -77,7 +77,7 @@ def main(args):
       print('99.9%ile latency = {0}'.format(p39), file=df)
       p49 = getPercentile(cdfx, 0.9999)
       print('99.99%ile latency = {0}'.format(p49), file=df)
-      p59 = getPercentile(cdfx, 0.9999)
+      p59 = getPercentile(cdfx, 0.99999)
       print('99.999%ile latency = {0}'.format(p59), file=df)
       print('', file=df)
 
