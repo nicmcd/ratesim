@@ -12,8 +12,14 @@ def getFiles(filename, batch, config, code):
     'json': filename,
     'id': id,
     'log' : os.path.join(batch, '{0}.log.gz'.format(id)),
-    'plot': os.path.join(batch, '{0}.png'.format(id)),
-    'data': os.path.join(batch, '{0}.txt'.format(id))}
+    'data': os.path.join(batch, '{0}.txt'.format(id)),
+    'mp': os.path.join(batch, '{0}_mp.png'.format(id)),
+    'bwa': os.path.join(batch, '{0}_bwa.png'.format(id)),
+    'bwo': os.path.join(batch, '{0}_bwo.png'.format(id)),
+    'lat': os.path.join(batch, '{0}_lat.png'.format(id)),
+    'lp1': os.path.join(batch, '{0}_lp1.png'.format(id)),
+    'lp2': os.path.join(batch, '{0}_lp2.png'.format(id)),
+    'lp3': os.path.join(batch, '{0}_lp3.png'.format(id))}
   return names
 
 

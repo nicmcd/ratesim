@@ -81,22 +81,6 @@ def generateSettings(alg):
   return settings
 
 
-def remove(force, filepath):
-  if os.path.isfile(filepath):
-    if force:
-      os.remove(filepath)
-    else:
-      while True:
-        ans = input('\'{0}\' already exists, remove it? (N/y) '
-                    .format(filepath)).lower()
-        if ans == '' or ans == 'no' or ans == 'n':
-          print('then we can\'t proceed :(')
-          sys.exit(-1)
-        elif ans == 'yes' or ans == 'y':
-          os.remove(filepath)
-          break
-
-
 def main(args):
   # create the task manager
   rm = taskrun.ResourceManager(
@@ -140,16 +124,17 @@ def main(args):
         sim.add_condition(taskrun.FileModificationCondition(
           [], [io['log']]))
 
-
         # create plot task
-        plot_cmd = 'parser/parser.py {0} {1} {2} -s {3}'.format(
-          io['log'], io['plot'], io['data'], args.smooth)
+        plot_cmd = ('parser/parser.py {0} {1} {2} {3} {4} {5} {6} {7} {8} '
+                    '-s {9}').format(io['log'], io['data'], io['mp'], io['bwa'],
+                                     io['bwo'], io['lat'], io['lp1'], io['lp2'],
+                                     io['lp3'], args.smooth)
         plot = taskrun.ProcessTask(tm, 'plot_{0}'.format(io['id']), plot_cmd)
         plot.resources = {'core': 1, 'mem': 4}
         plot.add_dependency(sim)
         plot.add_condition(taskrun.FileModificationCondition(
-          [io['log']], [io['plot'], io['data']]))
-
+          [io['log']], [io['data'], io['mp'], io['bwa'], io['bwo'], io['lat'],
+                        io['lp1'], io['lp2'], io['lp3']]))
 
   # run all tasks
   print('{0} simulations'.format(count))

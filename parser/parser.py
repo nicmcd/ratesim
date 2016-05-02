@@ -23,9 +23,9 @@ def main(args):
   raw = RawData(args.input)
 
   # if requested, save the raw data to a file
-  if args.output:
+  if args.raw:
     print('writing raw file')
-    raw.write(args.output)
+    raw.write(args.raw)
 
   #############################################################################
   # Analyzing
@@ -39,7 +39,7 @@ def main(args):
   sender_send = raw.extractRate(['Sender_.*'], 'send')
   sender_recv = raw.extractRate(['Sender_.*'], 'recv')
   receiver_recv = raw.extractRate(['Receiver_.*'], 'recv')
-  times, latencies = raw.extractLatencies('total')
+  send_times, latencies = raw.extractLatencies('total')
 
   _, sect1_latencies = raw.extractLatencies('total', bounds=[10000, 50000])
   _, sect2_latencies = raw.extractLatencies('total', bounds=[50000, 90000])
@@ -86,69 +86,118 @@ def main(args):
   #############################################################################
   print('plotting')
 
-  # create a quad-plot
-  fig = plt.figure(figsize=(16, 9))
-  ax1 = fig.add_subplot(2, 3, 1)
-  ax2 = fig.add_subplot(2, 3, 2)
-  ax3 = fig.add_subplot(2, 3, 3)
-  ax4 = fig.add_subplot(2, 3, 4)
-  ax5 = fig.add_subplot(2, 3, 5)
-  ax6 = fig.add_subplot(2, 3, 6)
+  # create a figures and axes
+  mp_fig = plt.figure(figsize=(16, 9))
+  mp_ax_bwa = mp_fig.add_subplot(2, 3, 1)
+  mp_ax_bwo = mp_fig.add_subplot(2, 3, 2)
+  mp_ax_lat = mp_fig.add_subplot(2, 3, 3)
+  mp_ax_lp1 = mp_fig.add_subplot(2, 3, 4)
+  mp_ax_lp2 = mp_fig.add_subplot(2, 3, 5)
+  mp_ax_lp3 = mp_fig.add_subplot(2, 3, 6)
+
+  bwa_fig = plt.figure(figsize=(5, 4))
+  bwa_ax = bwa_fig.add_subplot(1, 1, 1)
+
+  bwo_fig = plt.figure(figsize=(5, 4))
+  bwo_ax = bwo_fig.add_subplot(1, 1, 1)
+
+  lat_fig = plt.figure(figsize=(5, 4))
+  lat_ax = lat_fig.add_subplot(1, 1, 1)
+
+  lp1_fig = plt.figure(figsize=(5, 4))
+  lp1_ax = lp1_fig.add_subplot(1, 1, 1)
+
+  lp2_fig = plt.figure(figsize=(5, 4))
+  lp2_ax = lp2_fig.add_subplot(1, 1, 1)
+
+  lp3_fig = plt.figure(figsize=(5, 4))
+  lp3_ax = lp3_fig.add_subplot(1, 1, 1)
 
   # get the xlim to be used by all time-based plots
-  xlim = max(times) * 1.02
+  xlim = max(send_times) * 1.02
 
-  # plot the bulk aggregates
-  ax = ax1
-  ax.plot(time, smooth_sender_send, 'r', label='Senders send')
-  ax.plot(time, smooth_sender_recv, 'g', label='Senders recv')
-  ax.plot(time, smooth_receiver_recv, 'b', label='Receivers recv')
-  ax.plot(time, limit, 'y--', linewidth=4, label='Rate limit')
-  ax.set_xlabel('Time (cycles)')
-  ax.set_ylabel('Bandwidth (phits/cycle)')
-  ax.set_title('Bandwidths by Group')
-  ax.set_xlim(0, xlim)
-  ax.set_ylim([0, raw.settings['rate_limit'] * 1.2])
-  ax.legend(fontsize=10)
-  ax.grid(True)
+  # plot the bandwidth aggregates
+  def plotBandwidthAggregates(ax, title, legend):
+    ax.plot(time, smooth_sender_send, 'r', label='Senders send')
+    ax.plot(time, smooth_sender_recv, 'g', label='Senders recv')
+    ax.plot(time, smooth_receiver_recv, 'b', label='Receivers recv')
+    ax.plot(time, limit, 'y--', linewidth=4, label='Rate limit')
+    ax.set_xlabel('Time (cycles)')
+    ax.set_ylabel('Bandwidth (phits/cycle)')
+    if title:
+      ax.set_title('Bandwidths by Group')
+    ax.set_xlim(0, xlim)
+    ax.set_ylim([0, raw.settings['rate_limit'] * 1.2])
+    ax.locator_params(axis='x', nbins=6)
+    if legend:
+      ax.legend(fontsize=10)
+    ax.grid(True)
+
+  plotBandwidthAggregates(mp_ax_bwa, True, True)
+  plotBandwidthAggregates(bwa_ax, False, False)
 
   # plot the bandwidth overhead
-  ax = ax2
-  ax.plot(time, smooth_overhead_recv, 'm')
-  ax.set_xlabel('Time (cycles)')
-  ax.set_ylabel('Bandwidth (phits/cycle)')
-  ax.set_title('Bandwidth Overhead')
-  ax.set_xlim(0, xlim)
-  ax.grid(True)
+  def plotBandwidthOverhead(ax, title):
+    ax.plot(time, smooth_overhead_recv, 'm')
+    ax.set_xlabel('Time (cycles)')
+    ax.set_ylabel('Bandwidth (phits/cycle)')
+    if title:
+      ax.set_title('Bandwidth Overhead')
+    ax.set_xlim(0, xlim)
+    ax.locator_params(axis='x', nbins=6)
+    ax.grid(True)
+
+  plotBandwidthOverhead(mp_ax_bwo, True)
+  plotBandwidthOverhead(bwo_ax, False)
 
   # plot the end-to-end latencies
-  ax = ax3
-  ax.scatter(times, latencies, color='b', s=2)
-  ax.set_xlabel('Time (cycles)')
-  ax.set_ylabel('Latency (cycles)')
-  ax.set_title('End-to-End Latency')
-  ax.set_xlim(0, xlim)
-  ax.set_ylim(0, max(latencies) * 1.05)
-  ax.grid(True)
+  def plotLatencies(ax, title):
+    ax.scatter(send_times, latencies, color='b', s=2)
+    ax.set_xlabel('Time (cycles)')
+    ax.set_ylabel('Latency (cycles)')
+    if title:
+      ax.set_title('End-to-End Latency')
+    ax.set_xlim(0, xlim)
+    ax.set_ylim(0, max(latencies) * 1.05)
+    ax.locator_params(axis='x', nbins=6)
+    ax.grid(True)
+
+  plotLatencies(mp_ax_lat, True)
+  plotLatencies(lat_ax, False)
 
   # plot the latency percentiles in section 1, 2, and 3
-  for ax, bounds, cdf in [(ax4, (10000, 50000), sect1_cdf),
-                          (ax5, (50000, 90000), sect2_cdf),
-                          (ax6, (90000, 130000), sect3_cdf)]:
-    xmin, xmax = bounds
+  def plotPercentiles(ax, xmin, xmax, cdf, title):
     cdfx, cdfy = cdf
     ax.scatter(cdfx, cdfy, color='b', s=2)
     ax.set_xlabel('Latency (cycles)')
     if cdfx[0] == cdfx[-1]:
       ax.set_xlim([cdfx[0] - 3, cdfx[0] + 3])
     ax.set_ylabel('Percentile')
-    ax.set_title('Log CDF ({0}-{1})'.format(xmin, xmax))
+    if title:
+      ax.set_title('Log CDF ({0}-{1})'.format(xmin, xmax))
     ax.set_yscale('close_to_one', nines=5)
+    ax.locator_params(axis='x', nbins=6)
     ax.grid(True)
 
+  for ax, bounds, cdf, title in [(mp_ax_lp1, (10000, 50000), sect1_cdf, True),
+                                 (mp_ax_lp2, (50000, 90000), sect2_cdf, True),
+                                 (mp_ax_lp3, (90000, 130000), sect3_cdf, True),
+                                 (lp1_ax, (10000, 50000), sect1_cdf, False),
+                                 (lp2_ax, (50000, 90000), sect2_cdf, False),
+                                 (lp3_ax, (90000, 130000), sect3_cdf, False)]:
+    xmin, xmax = bounds
+    plotPercentiles(ax, xmin, xmax, cdf, title)
+
   # tidy up and plot
-  fig.tight_layout()
-  fig.savefig(args.plotfile)
+  for fig, path in [(mp_fig, args.multiplot),
+                    (bwa_fig, args.bwa_plot),
+                    (bwo_fig, args.bwo_plot),
+                    (lat_fig, args.lat_plot),
+                    (lp1_fig, args.lp1_plot),
+                    (lp2_fig, args.lp2_plot),
+                    (lp3_fig, args.lp3_plot)]:
+    fig.tight_layout()
+    fig.savefig(path)
 
 
 def getCdf(latencies):
@@ -200,17 +249,29 @@ def scaleXaxis(ax, tickRange, divisor, unit):
   ax.set_xticklabels(labels)
 
 
-
 if __name__ == '__main__':
   ap = argparse.ArgumentParser()
   ap.add_argument('input',
                   help='input data or log file')
-  ap.add_argument('plotfile',
-                  help='filename of output plot file')
   ap.add_argument('datafile',
                   help='output data file')
-  ap.add_argument('-o', '--output',
+  ap.add_argument('multiplot',
+                  help='output multiplot file')
+  ap.add_argument('bwa_plot',
+                  help='bandwidth aggregate plot file')
+  ap.add_argument('bwo_plot',
+                  help='bandwidth overhead plot file')
+  ap.add_argument('lat_plot',
+                  help='latency plot file')
+  ap.add_argument('lp1_plot',
+                  help='latency percentile section 1 plot file')
+  ap.add_argument('lp2_plot',
+                  help='latency percentile section 2 plot file')
+  ap.add_argument('lp3_plot',
+                  help='latency percentile section 3 plot file')
+  ap.add_argument('-r', '--raw',
                   help='save raw data to file')
   ap.add_argument('-s', '--smooth', type=int, default=0,
                   help='smoothing factor applied to all data')
+
   main(ap.parse_args())

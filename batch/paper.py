@@ -53,17 +53,23 @@ def generateSetting(alg, **kwargs):
 
 
 def generateSettingsForPaper():
+  #relay_nr500_mo10000
+  #dist2_mt2000_st0.30_tak1.80_mro10_gtt0.50
+  #dist3_mt2000_st0.60_rak0.90_mro10_grt0.95_grf0.85
+  #dist4_mt2000_st0.50_tak1.20_rak1.00_mro10_gtt0.35_grt0.90_grf0.90
+
   basic = generateSetting('basic')
 
-  relay = generateSetting('relay', nr='500', mo='1000')
+  relay = generateSetting('relay', nr='500', mo='10000')
 
-  dist1 = generateSetting('dist1', mt='1000')
-  dist2 = generateSetting('dist2', mt='1000', st='0.50', tak='1.20', mro='18',
-                          gtt='0.35')
-  dist3 = generateSetting('dist3', mt='1000', st='0.50', rak='0.90', mro='21',
-                          grt='0.75', grf='0.90')
-  dist4 = generateSetting('dist4', mt='1000', st='0.50', tak='1.20', rak='0.90',
-                          mro='21', gtt='0.15', grt='0.95', grf='0.90')
+  dist1 = generateSetting('dist1', mt='2000')
+  dist2 = generateSetting('dist2', mt='2000', st='0.30', tak='1.80', mro='10',
+                          gtt='0.50')
+  dist3 = generateSetting('dist3', mt='2000', st='0.60', rak='0.90', mro='10',
+                          grt='0.95', grf='0.85')
+  dist4 = generateSetting('dist4', mt='2000', st='0.50', tak='1.40', rak='1.00',
+                          mro='10', gtt='0.35', grt='0.90', grf='0.90')
+  # note: dist4 tak is actually 1.20
 
   return [basic, relay, dist1, dist2, dist3, dist4]
 
@@ -85,9 +91,11 @@ def main(args):
   if not os.path.isdir(args.batch):
     os.mkdir(args.batch)
 
-
   # create all tasks
+  count = 0
   for alg, code, override in settings:
+    count += 1
+
     # get all file names
     ff = os.path.join('json', '{0}.json'.format(alg))
     assert os.path.isfile(ff)
@@ -95,12 +103,6 @@ def main(args):
 
     if args.verbose:
       print(io['id'])
-
-    # determine what needs to run
-    run_sim = not os.path.isfile(io['log'])
-    run_plot = (run_sim or
-                (args.plot and not os.path.isfile(io['plot'])) or
-                (args.data and not os.path.isfile(io['data'])))
 
     # create sim task
     sim_cmd = 'bin/ratesim {0} log_file=string={1} {2}'.format(
@@ -112,16 +114,21 @@ def main(args):
       [], [io['log']]))
 
     # create plot task
-    plot_cmd = 'parser/parser.py {0} {1} {2} -s {3}'.format(
-      io['log'], io['plot'], io['data'], args.smooth)
+    plot_cmd = ('parser/parser.py {0} {1} {2} {3} {4} {5} {6} {7} {8} '
+                '-s {9}').format(io['log'], io['data'], io['mp'], io['bwa'],
+                                 io['bwo'], io['lat'], io['lp1'], io['lp2'],
+                                 io['lp3'], args.smooth)
     plot = taskrun.ProcessTask(tm, 'plot_{0}'.format(io['id']), plot_cmd)
     plot.resources = {'core': 1, 'mem': 4}
     plot.add_dependency(sim)
     plot.add_condition(taskrun.FileModificationCondition(
-      [io['log']], [io['plot'], io['data']]))
+      [io['log']], [io['data'], io['mp'], io['bwa'], io['bwo'], io['lat'],
+                    io['lp1'], io['lp2'], io['lp3']]))
 
   # run all tasks
-  tm.run_tasks()
+  print('{0} simulations'.format(count))
+  if not args.debug:
+    tm.run_tasks()
 
 
 if __name__ == '__main__':
@@ -141,5 +148,11 @@ if __name__ == '__main__':
                   help='amount of memory (in GiB) to use during run')
   ap.add_argument('-v', '--verbose', action='store_true',
                   help='enable verbose output')
+  ap.add_argument('-d', '--debug', action='store_true',
+                  help='don\'t run simulations, just build')
   args = ap.parse_args()
+
+  assert args.cores <= cores, 'not enough cores'
+  assert args.memory <= mem, 'not enough memory available'
+
   sys.exit(main(args))
